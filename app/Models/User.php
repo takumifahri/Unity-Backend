@@ -24,6 +24,10 @@ class User extends Authenticatable
         'email',
         'role',
         'password',
+        'total_order',
+        'phone',
+        'address',
+        'profile_photo',
     ];
 
     /**
@@ -47,5 +51,10 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
     }
 }
