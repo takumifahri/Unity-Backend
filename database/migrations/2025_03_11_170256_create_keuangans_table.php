@@ -12,8 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('keuangans', function (Blueprint $table) {
+            
             $table->id();
-            $table->foreignId('order_id')->constrained('orders');
+            $table->foreignId('order_id')->constrained('orders')->onDelete('cascade');
             $table->string('nama_keuangan');
             $table->integer('nominal');
             $table->date('tanggal');
