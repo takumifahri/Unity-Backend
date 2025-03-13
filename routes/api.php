@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthControllerApi;
 use App\Http\Controllers\Api\CatalogController;
 use App\Http\Controllers\Api\CatalogControllerApi;
+use App\Http\Controllers\Api\ContactUsControllerApi;
 use App\Http\Controllers\Api\MasterBahanControllerApi;
 use App\Http\Controllers\Api\MasterJenisKatalogControllerApi;
 use App\Http\Controllers\Api\UserControllerApi;
@@ -62,4 +63,16 @@ Route::prefix('/catalog')->group(function () {
         
     );
 
+});
+
+Route::prefix('/contactus')->group(function () {
+    // Add your contact us routes here
+    Route::middleware(['auth:sanctum'])->group(function () {
+        Route::get('/', [ContactUsControllerApi::class, 'index']);
+        Route::get('/show/{id}', [ContactUsControllerApi::class, 'show']);
+        Route::delete('/delete/{id}', [ContactUsControllerApi::class, 'destroy']);
+    });
+
+
+    Route::post('/send', [ContactUsControllerApi::class, 'store']);
 });
