@@ -19,7 +19,7 @@ class MasterBahanControllerApi extends Controller
         //
         $bahan = master_bahan::all();
         $user = Auth::user();
-        if($user->role == 'admin'){
+        if($user->role == 'admin' || $user->role == 'owner'){
             try{
                 return response()->json([
                     'message' => 'Success',
@@ -42,19 +42,14 @@ class MasterBahanControllerApi extends Controller
 
     }
 
-
     /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
     {
         // Cek apakah user memiliki role 'admin'
-        if (Auth::user()->role !== 'admin') {
-            return response()->json([
-                'message' => 'Unauthorized. Only admin can access this feature',
-                'status' => 'error'
-            ], 403);
-        } else {
+        $user = Auth::user();
+        if ($user->role === 'admin' || $user->role === 'owner' ){
             try{
                 // Kode validasi dan penyimpanan tetap sama
                 $validate = $request->validate([
@@ -75,19 +70,24 @@ class MasterBahanControllerApi extends Controller
                     'gambar_bahan.max' => 'Ukuran gambar maksimal 2MB',
                 ]);
 
-                // Inisialisasi data yang akan disimpan
-                $data = $validate;
 
                 // Handle upload gambar jika ada
                 if ($request->hasFile('gambar_bahan')) {
                     $fileName = time() . '.' . $request->gambar_bahan->extension();
-                    $request->gambar_bahan->move(public_path('uploads'), $fileName);
-                    $data['gambar_bahan'] = $fileName;
+                    $request->gambar_bahan->move(public_path('uploads/master_bahan/'), $fileName);
+                    $data['gambar_bahan'] = 'uploads/master_bahan/'.$fileName;
                 } else {
                     $data['gambar_bahan'] = null;
                 }
 
-                $bahan = master_bahan::create($data);
+                $bahan = master_bahan::create([
+                    'nama_bahan' => $validate['nama_bahan'],
+                    'deskripsi' => $validate['deskripsi'],
+                    'stok' => $validate['stok'],
+                    'harga' => $validate['harga'],
+                    'satuan' => $validate['satuan'],
+                    'gambar_bahan' => $data['gambar_bahan'],
+                ]);
 
                 return response()->json([
                     'message' => 'Bahan created successfully',
@@ -100,9 +100,12 @@ class MasterBahanControllerApi extends Controller
                     'status' => 'error'
                 ]);
             }
+        } else {
+            return response()->json([
+                'message' => 'Unauthorized. Only admin can access this feature',
+                'status' => 'error'
+            ], 403);
         }
-        
-       
     }
     /**
      * Display the specified resource.
@@ -112,7 +115,7 @@ class MasterBahanControllerApi extends Controller
         //
         $bahanId = master_bahan::find($id);
         $user = Auth::user();
-        if($user->role == 'admin'){
+        if($user->role == 'admin' || $user->role == 'owner'){
             try{
                 return response()->json([
                     'message' => 'Data master bahan is retrieved successfully',

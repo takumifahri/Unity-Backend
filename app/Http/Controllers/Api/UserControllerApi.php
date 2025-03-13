@@ -57,7 +57,7 @@ class UserControllerApi extends Controller
                 if ($request->hasFile('profile_photo')) {
                     $fileName = time() . '.' . $request->profile_photo->extension();
                     $request->profile_photo->move(public_path('uploads/user'), $fileName);
-                    $validate['profile_photo'] = $fileName;
+                    $validate['profile_photo'] = 'uploads/user/'. $fileName;
                 } else {
                     $validate['profile_photo'] = null;
                 }
