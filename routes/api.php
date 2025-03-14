@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\CatalogControllerApi;
 use App\Http\Controllers\Api\ContactUsControllerApi;
 use App\Http\Controllers\Api\MasterBahanControllerApi;
 use App\Http\Controllers\Api\MasterJenisKatalogControllerApi;
+use App\Http\Controllers\Api\OrderControllerApi;
 use App\Http\Controllers\Api\UserControllerApi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;   
@@ -73,6 +74,13 @@ Route::prefix('/contactus')->group(function () {
         Route::delete('/delete/{id}', [ContactUsControllerApi::class, 'destroy']);
     });
 
-
     Route::post('/send', [ContactUsControllerApi::class, 'store']);
+});
+
+Route::prefix('/order')->group(function () {
+    // Add your order routes here
+    Route::middleware(['auth:sanctum'])->group(function () {
+        Route::get('/itemlist', [OrderControllerApi::class, 'CartIndex']);
+        Route::post('/additem', [OrderControllerApi::class, 'addCart']);
+    });
 });
