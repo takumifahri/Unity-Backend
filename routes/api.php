@@ -82,5 +82,7 @@ Route::prefix('/order')->group(function () {
     Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/itemlist', [OrderControllerApi::class, 'CartIndex']);
         Route::post('/additem', [OrderControllerApi::class, 'addCart']);
+        Route::delete('/removeItem/{id}', [OrderControllerApi::class, 'removeItems']);
+        Route
     });
 });

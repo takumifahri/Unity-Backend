@@ -116,9 +116,48 @@ class OrderControllerApi extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function removeItems(Request $request)
     {
         //
+        $user = Auth::user();
+        try {
+            if($user->orders->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cart is empty'
+                ], 404);
+            }else{
+                
+            }
+            $validated = $request->validate([
+                'order_id' => 'required|exists:orders,id',
+            ]);
+            
+            $order = Order::where('user_id', $user->id)
+                        ->where('id', $validated['order_id'])
+                        ->where('status', 'Menunggu Pembayaran')
+                        ->first();
+            
+            if($order->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Item not found in cart'
+                ], 404);
+            } else {
+                $order->delete();
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Item removed from cart'
+                ], 200);
+            }
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
