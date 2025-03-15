@@ -33,4 +33,14 @@ class Order extends Model
         return $this->belongsTo(Catalog::class, 'catalog_id');
     }
 
+    public function deliveryProof()
+    {
+        return $this->hasOne(DeliveryProof::class);
+    }
+
+    public function transaction()
+    {
+        return $this->hasOne(Transaction::class);
+    }
+
 }

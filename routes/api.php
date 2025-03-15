@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\Api\AuthControllerApi;
-use App\Http\Controllers\Api\CatalogController;
 use App\Http\Controllers\Api\CatalogControllerApi;
 use App\Http\Controllers\Api\ContactUsControllerApi;
 use App\Http\Controllers\Api\MasterBahanControllerApi;
@@ -61,7 +60,6 @@ Route::prefix('/catalog')->group(function () {
         Route::post('/update/{id}', [CatalogControllerApi::class, 'update']);
         Route::delete('/delete/{id}', [CatalogControllerApi::class, 'destroy']);
     }
-        
     );
 
 });
@@ -83,5 +81,9 @@ Route::prefix('/order')->group(function () {
         Route::get('/itemlist', [OrderControllerApi::class, 'CartIndex']);
         Route::post('/additem', [OrderControllerApi::class, 'addCart']);
         Route::delete('/removeItem/{id}', [OrderControllerApi::class, 'removeItems']);
+        Route::post('/checkout', [OrderControllerApi::class, 'checkout']);
+        Route::post('/checkout/buktibayar', [OrderControllerApi::class, 'uploadPaymentProof']);
+        Route::post('/admin/verif/{id}', [OrderControllerApi::class, 'AdminVerifPayment']);
+        Route::get('/history_cart', [OrderControllerApi::class, 'getMyOrders']);
     });
 });

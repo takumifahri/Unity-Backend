@@ -44,6 +44,7 @@ class CatalogControllerApi extends Controller
                 if ($request->hasFile('gambar')) {
                     $fileName = time() . '.' . $request->gambar->extension();
                     $request->gambar->move(public_path('uploads'), $fileName);
+                    
                 }
                 $catalog = Catalog::create([
                     'nama_katalog' => $validate['nama_katalog'],
@@ -52,7 +53,7 @@ class CatalogControllerApi extends Controller
                     'tipe_bahan_id' => $validate['tipe_bahan'],
                     'jenis_katalog_id' => $validate['jenis_katalog'],
                     'harga' => $validate['harga'],
-                    'gambar' => 'uploads/' . $fileName,
+                    'gambar' => 'uploads/catalog/' . $fileName,
                 ]);
                 return response()->json([
                     'message' => 'Catalog created successfully',
