@@ -34,6 +34,8 @@ class OrderControllerApi extends Controller
         
         try {
             $order_items = Order::where('user_id', $user->id)
+                ->leftJoin('transactions', 'orders.transaction_id', '=', 'transactions.id')
+                
                 ->where('bukti_pembayaran', null)
                 ->with('catalog')
                 ->get()
