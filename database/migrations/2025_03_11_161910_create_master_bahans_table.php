@@ -20,6 +20,7 @@ return new class extends Migration
             $table->string('gambar_bahan')->nullable();
             $table->text('deskripsi');
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 
@@ -29,6 +30,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::table('catalogs', function (Blueprint $table) {
+            $table->dropForeign(['tipe_bahan_id']);
+        });
         Schema::dropIfExists('master_bahans');
     }
 };

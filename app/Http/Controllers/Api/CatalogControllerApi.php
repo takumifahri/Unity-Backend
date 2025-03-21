@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Catalog;
+use App\Models\History;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Spatie\Permission\Traits\HasRoles;
@@ -44,6 +45,7 @@ class CatalogControllerApi extends Controller
                 if ($request->hasFile('gambar')) {
                     $fileName = time() . '.' . $request->gambar->extension();
                     $request->gambar->move(public_path('uploads'), $fileName);
+                    
                 }
                 $catalog = Catalog::create([
                     'nama_katalog' => $validate['nama_katalog'],
@@ -52,7 +54,7 @@ class CatalogControllerApi extends Controller
                     'tipe_bahan_id' => $validate['tipe_bahan'],
                     'jenis_katalog_id' => $validate['jenis_katalog'],
                     'harga' => $validate['harga'],
-                    'gambar' => 'uploads/' . $fileName,
+                    'gambar' => 'uploads/catalog/' . $fileName,
                 ]);
                 return response()->json([
                     'message' => 'Catalog created successfully',
@@ -228,5 +230,69 @@ class CatalogControllerApi extends Controller
                 'status' => 'error'
             ], 404);
         }
+    }
+
+    public function destroyReason(Request $request, $id)
+    {
+        $user = Auth::user();
+        // Validasi bahwa user adalah admin
+        if($user->role === 'admin' || $user->role === 'owner'){
+            try{
+                $request->validate([
+                    'reason' => 'required|string'
+                ]);
+        
+                $catalog = Catalog::deleteWithReason($id, $request->reason);
+                
+                return response()->json([
+                    'message' => 'Catalog deleted successfully'
+                ]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'message' => 'Failed to delete catalog',
+                    'detail message' => $e->getMessage()
+                ], 500);
+            }
+        } else{
+            return response()->json([
+                'message' => 'Unauthorized. Only admin can access this feature',
+                'status' => 'error'
+            ], 403);
+        }
+        
+    }
+
+    // Restore katalog yang telah di-soft delete
+    public function restore($id)
+    {
+        $user = Auth::user();
+        $catalog = Catalog::withTrashed()->findOrFail($id);
+        if($user->role === 'admin' || $user->role === 'owner') {
+            $catalog->restore();
+
+            // Catat history restore
+            History::create([
+                'items_id' => $catalog->id,
+                'item_type' => 'Catalog',
+                'user_id' => Auth::id(),
+                'action' => 'restore',
+                'reason' => request('reason') ?? 'Restored by admin',
+                'new_value' => $catalog->getAttributes(),
+                'old_value' => []
+            ]);
+            
+            return response()->json([
+                'message' => 'Catalog restored successfully',
+                'data' => $catalog
+            ]);
+        } else {
+            return response()->json([
+                'message' => 'Unauthorized. Only admin can access this feature',
+                'status' => 'error'
+            ], 403);
+        }
+       
+        
+        
     }
 }

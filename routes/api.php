@@ -1,9 +1,9 @@
 <?php
 
 use App\Http\Controllers\Api\AuthControllerApi;
-use App\Http\Controllers\Api\CatalogController;
 use App\Http\Controllers\Api\CatalogControllerApi;
 use App\Http\Controllers\Api\ContactUsControllerApi;
+use App\Http\Controllers\Api\HistoryControllerApi;
 use App\Http\Controllers\Api\MasterBahanControllerApi;
 use App\Http\Controllers\Api\MasterJenisKatalogControllerApi;
 use App\Http\Controllers\Api\OrderControllerApi;
@@ -17,9 +17,8 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
 
 Route::post('/auth/register', [AuthControllerApi::class, 'register']);
 Route::post('/auth/login', [AuthControllerApi::class, 'login']);
-// Route::get('/test', function() {
-//     return response()->json(['message' => 'API is working']);
-// });
+
+// Profile route 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/auth/logout', [AuthControllerApi::class, 'logout']);
     Route::get('/auth/whoami', [AuthControllerApi::class, 'whoami']);
@@ -48,6 +47,19 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/update/{id}', [UserControllerApi::class, 'update']);
         Route::delete('/delete/{id}', [UserControllerApi::class, 'destroy']);
     });
+
+    Route::group(['prefix'=>'profile'], function(){
+        Route::get('/', [UserControllerApi::class, 'profile']);
+        Route::post('/update', [AuthControllerApi::class, 'updateProfile']);
+    });
+
+
+    Route::group(['prefix'=>'history'], function(){
+        Route::get('/', [HistoryControllerApi::class, 'index']);
+        Route::get('/revenue', [HistoryControllerApi::class, 'dailyRevenue']);
+        Route::get('/routine', [HistoryControllerApi::class, 'activitySummary']);
+        Route::get('/admin', [HistoryControllerApi::class, 'adminActivity']);
+    });
 });
 
 
@@ -61,7 +73,6 @@ Route::prefix('/catalog')->group(function () {
         Route::post('/update/{id}', [CatalogControllerApi::class, 'update']);
         Route::delete('/delete/{id}', [CatalogControllerApi::class, 'destroy']);
     }
-        
     );
 
 });
@@ -82,5 +93,10 @@ Route::prefix('/order')->group(function () {
     Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/itemlist', [OrderControllerApi::class, 'CartIndex']);
         Route::post('/additem', [OrderControllerApi::class, 'addCart']);
+        Route::delete('/removeItem/{id}', [OrderControllerApi::class, 'removeItems']);
+        Route::post('/checkout', [OrderControllerApi::class, 'checkout']);
+        Route::post('/checkout/buktibayar', [OrderControllerApi::class, 'uploadPaymentProof']);
+        Route::post('/admin/verif/{id}', [OrderControllerApi::class, 'AdminVerifPayment']);
+        Route::get('/history_cart', [OrderControllerApi::class, 'getMyOrders']);
     });
 });

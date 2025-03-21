@@ -24,6 +24,8 @@ return new class extends Migration
             $table->integer('harga');
             $table->string('gambar')->nullable();
             $table->timestamps();
+            $table->softDeletes();
+
         
             // Foreign Keys
             $table->foreign('tipe_bahan_id')->references('id')->on('master_bahans')->onDelete('cascade');
@@ -37,7 +39,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('catalogs');
+        Schema::enableForeignKeyConstraints();
     }
     public function afterAllMigrationsRan(): void
     {

@@ -13,13 +13,17 @@ return new class extends Migration
     {
         Schema::create('histories', function (Blueprint $table) {
             $table->id();
-            $table->integer('items_id');
-            $table->integer('user_id');
-            $table->string('reason');
-            $table->json('new_value');
-            $table->json('old_value');
-            $table->timestamp('deleted_at')->nullable();
+            $table->unsignedBigInteger('items_id');
+            $table->string('item_type');  // Untuk membedakan jenis item (Catalog, Transaction, Material, dll)
+            $table->unsignedBigInteger('user_id');
+            $table->string('action');     // create, update, delete, restore, dll
+            $table->string('reason')->nullable();
+            $table->json('new_value')->nullable();
+            $table->json('old_value')->nullable();
             $table->timestamps();
+            
+            // Foreign key ke users
+            $table->foreign('user_id')->references('id')->on('users');
         });
     }
 
