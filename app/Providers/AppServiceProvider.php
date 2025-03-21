@@ -5,7 +5,7 @@ namespace App\Providers;
 use App\Models\Order;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\ServiceProvider;
-use App\Observers\Api\OrderObserver;
+use App\Observers\api\OrderObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
