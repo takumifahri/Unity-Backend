@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Catalog;
 use App\Models\DeliveryProof;
+use App\Models\keuangan;
 use App\Models\Order;
 use App\Models\transaction;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class OrderControllerApi extends Controller
@@ -35,7 +38,9 @@ class OrderControllerApi extends Controller
         try {
             $order_items = Order::where('user_id', $user->id)
                 ->leftJoin('transactions', 'orders.transaction_id', '=', 'transactions.id')
-                ->where('bukti_pembayaran', null)
+                ->select('orders.id as id', 'orders.catalog_id', 'orders.jumlah', 'orders.total_harga', 
+                        'orders.bukti_pembayaran', 'orders.transaction_id')
+                ->where('orders.bukti_pembayaran', null)
                 ->with('catalog')
                 ->get()
                 ->map(function($item) {
@@ -101,6 +106,7 @@ class OrderControllerApi extends Controller
                 // Update existing cart item
                 $addCart->jumlah += $validated['jumlah'];
                 $addCart->total_harga = $catalog->harga * $addCart->jumlah;
+                $addCart->bukti_pembayaran = null;
                 $addCart->save();
             } else {
                 // Create new cart item
@@ -110,8 +116,8 @@ class OrderControllerApi extends Controller
                     'jumlah' => $validated['jumlah'],
                     'total_harga' => $totalPrice,
                     'alamat' => 'Depok', // Default alamat value
-                    'type' => 'Pembelian', // Default value, can be changed later
-                    'status' => 'Menunggu Pembayaran'
+                    'status' => 'Menunggu Pembayaran',
+                    'bukti_pembayaran' => null
                 ]);
             }
             
@@ -196,7 +202,7 @@ class OrderControllerApi extends Controller
                     'alamat' => 'required|string',
                     'type' => 'required|in:Pembelian,Pemesanan',
                 ]);
-    
+
                 if ($validator->fails()) {
                     return response()->json(['errors' => $validator->errors()], 422);
                 }
@@ -216,12 +222,12 @@ class OrderControllerApi extends Controller
                 // Calculate total amount
                 $totalAmount = $cartItems->sum('total_harga');
                 
-                // Create unique order ID
-                $order_id = 'ORD-' . time() . '-' . $user->id;
+                // Get the first order ID to use as a reference
+                $firstOrderId = $cartItems->first()->id;
                 
                 // Create transaction
                 $transaction = transaction::create([
-                    'order_id' => $order_id,
+                    'order_id' => $firstOrderId,
                     'status' => 'pending',
                     'tujuan_transfer' => $this->getPaymentDetails($request->payment_method),
                     'amount' => $totalAmount,
@@ -249,7 +255,7 @@ class OrderControllerApi extends Controller
                         'payment_details' => $this->getPaymentDetails($request->payment_method),
                         'total_amount' => $totalAmount
                     ]
-                ], status: 200);
+                ], 200);
             } else {
                 return response()->json([
                     'success' => false,
@@ -339,6 +345,8 @@ class OrderControllerApi extends Controller
         }
         
         try {
+            DB::beginTransaction();
+            
             $validator = Validator::make($request->all(), [
                 'status' => 'required|in:approve,reject',
             ]);
@@ -353,8 +361,23 @@ class OrderControllerApi extends Controller
                 $transaction->status = 'success';
                 
                 // Update all orders associated with this transaction
-                Order::where('transaction_id', $transaction->id)
-                    ->update(['status' => 'Diproses']);
+                $orders = Order::where('transaction_id', $transaction->id)
+                    ->get();
+                    
+                foreach ($orders as $order) {
+                    $order->status = 'Diproses';
+                    $order->save();
+                    
+                    // Catat ke tabel keuangan untuk setiap order yang diverifikasi
+                    $keuangan = new keuangan();
+                    $keuangan->order_id = $order->id;
+                    $keuangan->nama_keuangan = 'Pembayaran Order #' . $order->id;
+                    $keuangan->nominal = $order->total_harga; // Pastikan kolom ini ada di tabel orders
+                    $keuangan->tanggal = now();
+                    $keuangan->jenis_keuangan = 'pemasukan';
+                    $keuangan->save();
+                }
+                
             } else {
                 $transaction->status = 'failure';
                 
@@ -364,6 +387,8 @@ class OrderControllerApi extends Controller
             }
             
             $transaction->save();
+            
+            DB::commit();
     
             return response()->json([
                 'success' => true,
@@ -372,6 +397,8 @@ class OrderControllerApi extends Controller
             ]);
             
         } catch (\Exception $e) {
+            DB::rollBack();
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Error verifying payment',
@@ -431,5 +458,304 @@ class OrderControllerApi extends Controller
             ], 500);
         }
     }
+    /**
+     * Update order status to shipped and create delivery proof
+     */
+    public function shipOrder(Request $request, $id)
+    {
+        $user = Auth::user();
+        
+        // Verify admin role
+        if ($user->role != 'admin' && $user->role != 'owner') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+        
+        try {
+            $validator = Validator::make($request->all(), [
+                'image' => 'required|image|max:2048',
+                'description' => 'nullable|string',
+                'receiver_name' => 'required|string',
+                'notes' => 'nullable|string',
+            ]);
 
+            if ($validator->fails()) {
+                return response()->json(['errors' => $validator->errors()], 422);
+            }
+
+            // Find the order
+            $order = Order::findOrFail($id);
+            
+            // Check if order is in the correct status to be shipped
+            if ($order->status != 'Diproses') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Order cannot be shipped. Current status: ' . $order->status
+                ], 400);
+            }
+            
+            // Upload delivery proof image
+            $imagePath = $request->file('image')->store('delivery_proofs', 'public');
+            
+            // Create delivery proof
+            $deliveryProof = DeliveryProof::create([
+                'order_id' => $order->id,
+                'admin_id' => $user->id,
+                'image_path' => $imagePath,
+                'description' => $request->description,
+                'delivery_date' => now(),
+                'receiver_name' => $request->receiver_name,
+                'notes' => $request->notes,
+                'status' => 'delivered'
+            ]);
+            
+            // Update order status
+            $order->status = 'Dikirim';
+            $order->save();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Order has been shipped successfully',
+                'data' => [
+                    'order' => $order,
+                    'delivery_proof' => $deliveryProof
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error updating order status',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all orders with delivery status
+     */
+    public function getOrdersWithDeliveryStatus()
+    {
+        $user = Auth::user();
+        
+        // Verify admin role
+        if ($user->role != 'admin' && $user->role != 'owner') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+        
+        try {
+            $orders = Order::whereIn('status', ['Diproses', 'Dikirim', 'Selesai'])
+                ->with(['catalog', 'transaction', 'user', 'deliveryProof'])
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function($order) {
+                    return [
+                        'id' => $order->id,
+                        'transaction_id' => $order->transaction_id,
+                        'user' => [
+                            'id' => $order->user->id,
+                            'name' => $order->user->name,
+                            'email' => $order->user->email
+                        ],
+                        'product' => [
+                            'id' => $order->catalog->id,
+                            'name' => $order->catalog->nama_katalog,
+                            'price' => $order->catalog->harga,
+                            'image' => $order->catalog->gambar
+                        ],
+                        'quantity' => $order->jumlah,
+                        'total_price' => $order->total_harga,
+                        'address' => $order->alamat,
+                        'status' => $order->status,
+                        'type' => $order->type,
+                        'created_at' => $order->created_at->format('Y-m-d H:i:s'),
+                        'delivery_info' => $order->deliveryProof ? [
+                            'id' => $order->deliveryProof->id,
+                            'image' => $order->deliveryProof->image_path,
+                            'admin_id' => $order->deliveryProof->admin_id,
+                            'description' => $order->deliveryProof->description,
+                            'delivery_date' => $order->deliveryProof->delivery_date,
+                            'receiver_name' => $order->deliveryProof->receiver_name,
+                            'notes' => $order->deliveryProof->notes,
+                            'status' => $order->deliveryProof->status
+                        ] : null
+                    ];
+                });
+            
+            return response()->json([
+                'success' => true,
+                'data' => $orders
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error retrieving orders',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Mark order as completed
+     */
+    public function completeOrder($id)
+    {
+        $user = Auth::user();
+        
+        // Verify admin role
+        if ($user->role != 'admin' && $user->role != 'owner') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+        
+        try {
+            // Find the order
+            $order = Order::findOrFail($id);
+            
+            // Check if order is in the correct status to be completed
+            if ($order->status != 'Dikirim') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Order cannot be completed. Current status: ' . $order->status
+                ], 400);
+            }
+            
+            // Update order status
+            $order->status = 'Selesai';
+            $order->save();
+            
+            // Update catalog stock if type is Pembelian
+            if ($order->type == 'Pembelian') {
+                $catalog = Catalog::findOrFail($order->catalog_id);
+                $catalog->stok -= $order->jumlah;
+                $catalog->save();
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Order has been completed successfully',
+                'data' => $order
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error completing order',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * User confirming order receipt
+     */
+    public function confirmReceipt($id)
+    {
+        $user = Auth::user();
+        
+        try {
+            // Find the order
+            $order = Order::where('id', $id)
+                ->where('user_id', $user->id)
+                ->first();
+            
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Order not found or not authorized'
+                ], 404);
+            }
+            
+            // Check if order is in the correct status to be confirmed
+            if ($order->status != 'Dikirim') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Order cannot be confirmed. Current status: ' . $order->status
+                ], 400);
+            }
+            
+            // Update order status
+            $order->status = 'Selesai';
+            $order->save();
+            
+            // Update catalog stock if type is Pembelian
+            if ($order->type == 'Pembelian') {
+                $catalog = Catalog::findOrFail($order->catalog_id);
+                $catalog->stok -= $order->jumlah;
+                $catalog->save();
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Order receipt confirmed successfully',
+                'data' => $order
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error confirming receipt',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get delivery proof details
+     */
+    public function getDeliveryProof($id)
+    {
+        $user = Auth::user();
+        
+        try {
+            $order = Order::findOrFail($id);
+            
+            // Check if user has permission to view this order
+            if ($user->role != 'admin' && $user->role != 'owner' && $order->user_id != $user->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized'
+                ], 403);
+            }
+            
+            $deliveryProof = DeliveryProof::where('order_id', $id)->first();
+            
+            if (!$deliveryProof) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Delivery proof not found'
+                ], 404);
+            }
+            
+            // Get admin details
+            $admin = User::findOrFail($deliveryProof->admin_id);
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'delivery_proof' => $deliveryProof,
+                    'admin' => [
+                        'id' => $admin->id,
+                        'name' => $admin->name
+                    ],
+                    'order_status' => $order->status
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error retrieving delivery proof',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

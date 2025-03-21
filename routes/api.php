@@ -98,5 +98,9 @@ Route::prefix('/order')->group(function () {
         Route::post('/checkout/buktibayar', [OrderControllerApi::class, 'uploadPaymentProof']);
         Route::post('/admin/verif/{id}', [OrderControllerApi::class, 'AdminVerifPayment']);
         Route::get('/history_cart', [OrderControllerApi::class, 'getMyOrders']);
+
+        Route::get('/deliveryStatus', [OrderControllerApi::class, 'getOrdersWithDeliveryStatus']);
+        Route::post('/recieved/{id}', [OrderControllerApi::class, 'shipOrder']);
+        Route::post('/complete/{id}', [OrderControllerApi::class, 'completeOrder']);
     });
 });
