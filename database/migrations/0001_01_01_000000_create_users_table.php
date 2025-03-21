@@ -11,6 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // First create users table without the foreign key
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
@@ -18,6 +19,7 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->integer('total_order')->default(0);
             $table->string('phone')->nullable();
+            // Remove address_id from here
             $table->string('profile_photo', 2048)->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
@@ -25,6 +27,7 @@ return new class extends Migration
             $table->timestamps();
         });
         
+        // Then create locations table
         Schema::create('locations', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('user_id')->nullable();
@@ -35,11 +38,11 @@ return new class extends Migration
             $table->timestamps();
         });
 
+        // Finally add the address_id to users table
         Schema::table('users', function (Blueprint $table) {
             $table->unsignedBigInteger('address_id')->nullable();
             $table->foreign('address_id')->references('id')->on('locations')->onDelete('cascade');
         });
-        
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
@@ -62,8 +65,16 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
-        Schema::dropIfExists('password_reset_tokens');
+        // Important: Drop in the reverse order of creation
+        // First remove the foreign key in users table
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropForeign(['address_id']);
+            $table->dropColumn('address_id');
+        });
+
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('locations');
+        Schema::dropIfExists('users');
     }
 };

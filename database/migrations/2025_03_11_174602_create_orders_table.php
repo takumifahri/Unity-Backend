@@ -26,6 +26,8 @@ return new class extends Migration
             $table->enum('status', ['Menunggu Pembayaran', 'Menunggu Konfirmasi', 'Diproses', 'Dikirim', 'Selesai']);
             $table->string('bukti_pembayaran')->nullable();
             $table->timestamps();
+            $table->softDeletes();
+
         });
     }
 
@@ -34,6 +36,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::table('keuangans', function (Blueprint $table) {
+            $table->dropForeign(['order_id']);
+        });
         Schema::dropIfExists('orders');
     }
 };

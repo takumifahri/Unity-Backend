@@ -35,7 +35,6 @@ class OrderControllerApi extends Controller
         try {
             $order_items = Order::where('user_id', $user->id)
                 ->leftJoin('transactions', 'orders.transaction_id', '=', 'transactions.id')
-                
                 ->where('bukti_pembayaran', null)
                 ->with('catalog')
                 ->get()
@@ -251,9 +250,12 @@ class OrderControllerApi extends Controller
                         'total_amount' => $totalAmount
                     ]
                 ], status: 200);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized'
+                ], 403);
             }
-           
-            
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

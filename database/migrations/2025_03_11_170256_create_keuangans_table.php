@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('keuangans', function (Blueprint $table) {
             
             $table->id();
+            // $table->unsignedBigInteger('order_id');
             $table->foreignId('order_id')->constrained('orders')->onDelete('cascade');
             $table->string('nama_keuangan');
             $table->integer('nominal');
@@ -28,6 +29,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        
         Schema::dropIfExists('keuangans');
     }
 };

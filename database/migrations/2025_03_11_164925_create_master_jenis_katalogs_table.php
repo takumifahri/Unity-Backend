@@ -16,6 +16,8 @@ return new class extends Migration
             $table->string('nama_jenis_katalog');
             $table->text('deskripsi');
             $table->timestamps();
+            $table->softDeletes();
+
         });
     }
 
@@ -24,6 +26,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::table('catalogs', function (Blueprint $table) {
+            $table->dropForeign(['jenis_katalog_id']);
+        });
         Schema::dropIfExists('master_jenis_katalogs');
     }
 };

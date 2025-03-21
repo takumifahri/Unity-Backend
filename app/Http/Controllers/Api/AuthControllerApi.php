@@ -105,4 +105,61 @@ class AuthControllerApi extends Controller
             'user' => $user
         ]);
     }
+
+    public function updateProfile(Request $request)
+    {
+        $user = Auth::user();
+        try{
+            if($user != null){
+                $validate = $request->validate([
+                    'name' => 'sometimes|string|max:255',
+                    'phone' => 'sometimes|string|max:255',
+                    // 'address' => 'sometimes|string|max:255',
+                    'profile_photo' => 'sometimes|image|mimes:jpg,jpeg,png|max:2048'
+                ], [
+                    'profile_photo.max' => 'The profile photo may not be greater than 2 MB.',
+                    'profile_photo.mimes' => 'The profile photo must be a file of type: jpg, jpeg, png.',
+                    'name.required' => 'The name field is required.',
+                    'email.required' => 'The email field is required.',
+                ]);
+
+                $updateProfile = [
+                    'name' => $validate['name'] ?? $user->name,
+                    'phone' => $validate['phone'] ?? $user->phone,
+                    // 'address' => $validate['address'] ?? $user->address,
+                    'profile_photo' => $validate['profile_photo'] ?? $user->profile_photo,
+                ];
+
+                if($request->hasFile('profile_photo')){
+                    // Hapus foto profil lama jika perlu
+                    if ($user->profile_photo && file_exists(storage_path('app/public/' . $user->profile_photo))) {
+                        unlink(storage_path('app/public/' . $user->profile_photo));
+                    }
+                    
+                    $fileName = time() . '.' . $request->profile_photo->extension();
+                    $request->profile_photo->move(storage_path('app/public/profile-photos'), $fileName);
+                    $updateProfile['profile_photo'] = 'profile-photos/' . $fileName;
+                }
+
+                $user->update($updateProfile);
+            
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Profile updated successfully',
+                    'user' => $user
+                ]);
+            } else {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'User not found'
+                ], 404);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'An error occurred while updating the profile',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

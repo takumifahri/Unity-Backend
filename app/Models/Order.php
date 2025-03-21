@@ -2,15 +2,17 @@
 
 namespace App\Models;
 
+use App\HistoryTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 class Order extends Model
 {
     //
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes, HistoryTrait;
     protected $table = 'orders';
     protected $fillable = [
         'user_id',
