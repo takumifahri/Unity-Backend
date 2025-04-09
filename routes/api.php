@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\HistoryControllerApi;
 use App\Http\Controllers\Api\MasterBahanControllerApi;
 use App\Http\Controllers\Api\MasterJenisKatalogControllerApi;
 use App\Http\Controllers\Api\OrderControllerApi;
+use App\Http\Controllers\Api\ProfileControllerApi;
 use App\Http\Controllers\Api\UserControllerApi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;   
@@ -21,7 +22,7 @@ Route::post('/auth/login', [AuthControllerApi::class, 'login']);
 // Profile route 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/auth/logout', [AuthControllerApi::class, 'logout']);
-    Route::get('/auth/whoami', [AuthControllerApi::class, 'whoami']);
+    Route::get('/auth/me', [ProfileControllerApi::class, 'me']);
 
     // data master bahan
     Route::group(['prefix' => 'master_bahan'], function () {
@@ -49,8 +50,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
 
     Route::group(['prefix'=>'profile'], function(){
-        Route::get('/', [UserControllerApi::class, 'profile']);
-        Route::post('/update', [AuthControllerApi::class, 'updateProfile']);
+        Route::get('/', [ProfileControllerApi::class, 'me']);
+        Route::post('/update_profile', [ProfileControllerApi::class, 'updateProfile']);
+        Route::post('/update_avatar', [ProfileControllerApi::class, 'updateProfilePhoto']);
+        Route::post('/reset_password', [ProfileControllerApi::class, 'linkResetPassword']);
+        Route::post('/update_password', [ProfileControllerApi::class, 'updatePassword']);
+        Route::post('/change_password', [ProfileControllerApi::class, 'changePassword']);
     });
 
 

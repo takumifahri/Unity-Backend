@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\History;
+use App\Models\User;
 use Illuminate\Http\Request;
 use App\Repositories\HistoryRepository;
 use Illuminate\Support\Facades\Auth;
@@ -24,7 +25,7 @@ class HistoryControllerApi extends Controller
 
     public function index(Request $request)
     {
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
         $query = History::with('user')->latest();
         
         if ($user->role !== 'admin' || $user->role !== 'owner') {
@@ -81,7 +82,7 @@ class HistoryControllerApi extends Controller
     
     public function dailyRevenue()
     {
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
         $permission = $user->role ==='owner';
 
         if($permission) {
@@ -110,7 +111,7 @@ class HistoryControllerApi extends Controller
     
     public function activitySummary()
     {
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
         $permission = $user->role ==='owner';
 
         if($permission) {

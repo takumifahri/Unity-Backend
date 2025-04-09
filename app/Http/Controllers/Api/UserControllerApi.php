@@ -16,8 +16,8 @@ class UserControllerApi extends Controller
     public function index()
     {
         // Untuk manajemen USer
-        $user = Auth::user();
-        if ($user->role === 'admin' || $user->role === 'owner') {
+        $user = User::findOrFail(Auth::id());
+        if ($user->isAdmin() || $user->isOwner()) {
             $data = User::all();
             return response()->json([
                 'message' => 'Data retrieved successfully',
@@ -38,8 +38,8 @@ class UserControllerApi extends Controller
     public function store(Request $request)
     {
         // Untuk manajemen user admin
-        $user = Auth::user();
-        if ($user->role === 'admin' || $user->role === 'owner') {
+    $user = User::findOrFail(Auth::id());
+        if ($user->isAdmin() || $user->isOwner()) {
             try {
                 $validate = $request->validate([
                     'name' => 'required|string|max:255',
@@ -96,8 +96,8 @@ class UserControllerApi extends Controller
     public function show(string $id)
     {
         //
-        $user = Auth::user();
-        if ($user->role === 'admin' || $user->role === 'owner') {
+    $user = User::findOrFail(Auth::id());
+        if ($user->isAdmin() || $user->isOwner()) {
             $data = User::find($id);
             if ($data !== null) {
                 return response()->json([
@@ -122,8 +122,8 @@ class UserControllerApi extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $user = Auth::user();
-        if ($user->role === 'admin' || $user->role === 'owner') {
+    $user = User::findOrFail(Auth::id());
+        if ($user->isAdmin() || $user->isOwner()) {
             $data = User::find($id);
             if ($data !== null) {
                 try {
@@ -185,8 +185,8 @@ class UserControllerApi extends Controller
      */
     public function destroy(string $id)
     {
-        $user = Auth::user();
-        if ($user->role === 'admin' || $user->role === 'owner') {
+    $user = User::findOrFail(Auth::id());
+        if ($user->isAdmin() || $user->isOwner()) {
             $data = User::find($id);
             if ($data !== null) {
                 $data->delete();

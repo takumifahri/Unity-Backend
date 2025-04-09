@@ -22,6 +22,7 @@ return new class extends Migration
             $table->json('old_value')->nullable();
             $table->timestamps();
             
+            $table->softDeletes();
             // Foreign key ke users
             $table->foreign('user_id')->references('id')->on('users');
         });

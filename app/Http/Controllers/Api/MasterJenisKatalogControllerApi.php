@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\master_jenis_katalogs;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -13,9 +14,9 @@ class MasterJenisKatalogControllerApi extends Controller
     {
         //
         $jenis = master_jenis_katalogs::all();
-        $user = Auth::user();
+        $user = User::findOrFail(Auth::id());
         if($jenis !== null){
-            if($user->role == 'admin'){
+            if($user->isAdmin()){
                 try{
                     return response()->json([
                         'message' => 'Data master jenis katalog berhasil diambil',
@@ -48,9 +49,9 @@ class MasterJenisKatalogControllerApi extends Controller
      */
     public function store(Request $request)
     {
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
         // Cek apakah user memiliki role 'admin'
-        if ($user->role === 'admin' || $user->role === 'owner') {
+        if ($user->isAdmin() || $user->isOwner()) {
             try {
                 $validate = $request->validate([
                     'nama_jenis_katalog' => 'required|string|max:255',
@@ -94,7 +95,7 @@ class MasterJenisKatalogControllerApi extends Controller
     {
         //
         $jenisId = master_jenis_katalogs::find($id);
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
         if($jenisId !== null){
             if($user->role == 'admin'){
                 try{
@@ -130,10 +131,10 @@ class MasterJenisKatalogControllerApi extends Controller
     {
         // Cek apakah data jenis ada
         $jenis = master_jenis_katalogs::find($id);
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
 
         if($jenis !== null){
-            if ($user->role === 'admin' || $user->role === 'owner') {
+            if ($user->isAdmin() || $user->isOwner()) {
                 try {
                     $validate = $request->validate([
                         'nama_jenis_katalog' => 'sometimes|required|string|max:255',
@@ -185,10 +186,10 @@ class MasterJenisKatalogControllerApi extends Controller
         //
         $jenis = master_jenis_katalogs::find($id);
         
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
 
         if ($jenis !== null){
-            if ($user->role === 'admin' || $user->role === 'owner') {
+            if ($user->isAdmin() || $user->isOwner()) {
                 try {
                     // Hapus gambar jika ada
                     $jenis->delete();

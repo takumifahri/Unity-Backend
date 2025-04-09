@@ -9,6 +9,7 @@ use App\Services\HistoryService;
 use App\Services\HistoryServices;
 use Illuminate\Http\Request;
 
+// controller buat reson ketika delete
 class MasterController extends Controller
 {
     protected $historyService;

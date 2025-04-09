@@ -10,7 +10,10 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
+use Laravel\Socialite\Facades\Socialite;
 
 class AuthControllerApi extends Controller
 {
@@ -86,80 +89,81 @@ class AuthControllerApi extends Controller
         ]);
     }
 
-    public function whoami(Request $request)
+
+   
+
+    
+    public function redirectToGoogle()
     {
-        // Ambil user yang sedang login dari request
-        $user = $request->user();
-        
-        // Jika tidak ada user yang login, kembalikan error
-        if (!$user) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Unauthenticated'
-            ], 401);
-        }
-        
-        // Tambahkan return statement untuk mengembalikan data user
-        return response()->json([
-            'status' => 'success',
-            'user' => $user
-        ]);
+        return Socialite::driver('google')
+            // Removed stateless() as it is not defined
+            ->redirect();
     }
 
-    public function updateProfile(Request $request)
+    /**
+     * Handle Google OAuth callback
+     */
+    public function handleGoogleCallback(Request $request)
     {
-        $user = Auth::user();
-        try{
-            if($user != null){
-                $validate = $request->validate([
-                    'name' => 'sometimes|string|max:255',
-                    'phone' => 'sometimes|string|max:255',
-                    // 'address' => 'sometimes|string|max:255',
-                    'profile_photo' => 'sometimes|image|mimes:jpg,jpeg,png|max:2048'
-                ], [
-                    'profile_photo.max' => 'The profile photo may not be greater than 2 MB.',
-                    'profile_photo.mimes' => 'The profile photo must be a file of type: jpg, jpeg, png.',
-                    'name.required' => 'The name field is required.',
-                    'email.required' => 'The email field is required.',
-                ]);
-
-                $updateProfile = [
-                    'name' => $validate['name'] ?? $user->name,
-                    'phone' => $validate['phone'] ?? $user->phone,
-                    // 'address' => $validate['address'] ?? $user->address,
-                    'profile_photo' => $validate['profile_photo'] ?? $user->profile_photo,
-                ];
-
-                if($request->hasFile('profile_photo')){
-                    // Hapus foto profil lama jika perlu
-                    if ($user->profile_photo && file_exists(storage_path('app/public/' . $user->profile_photo))) {
-                        unlink(storage_path('app/public/' . $user->profile_photo));
-                    }
-                    
-                    $fileName = time() . '.' . $request->profile_photo->extension();
-                    $request->profile_photo->move(storage_path('app/public/profile-photos'), $fileName);
-                    $updateProfile['profile_photo'] = 'profile-photos/' . $fileName;
-                }
-
-                $user->update($updateProfile);
-            
-                return response()->json([
-                    'status' => 'success',
-                    'message' => 'Profile updated successfully',
-                    'user' => $user
-                ]);
-            } else {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'User not found'
-                ], 404);
+        try {
+            // Validate state parameter for security
+            if (!$request->has('state') || !$request->has('code')) {
+                throw new \Exception('Invalid OAuth response');
             }
+
+
+            // In your controller, before using Socialite
+            \Illuminate\Support\Facades\Config::set('services.google.guzzle', [
+                'verify' => false
+            ]);
+
+            // Get authenticated Google user
+            $googleUser = Socialite::driver('google')->user();
+                // ->stateless() // Important for API usage
+                
+            // Validate required fields
+            if (empty($googleUser->email)) {
+                throw new \Exception('Email not provided by Google');
+            }
+
+            // Find or create user
+            $user = User::updateOrCreate(
+                ['email' => $googleUser->email],
+                [
+                    'name' => $googleUser->name ?? 'No Name Provided',
+                    'google_id' => $googleUser->id,
+                    'email' => $googleUser->email,
+                    'email_verified_at' => now(), // Mark email as verified
+                    'role' => 'user',
+                    'password' => Hash::make(Str::random(16)), // Optional: Generate a random password
+                    'total_order' => 0, // Default value for total_order
+                    'phone' => null, // Default value for phone
+                    'profile_photo' => $googleUser->avatar ?? null, // Use Google avatar if available
+                ]
+            );
+
+            // Trigger registered event if new user
+            if ($user->wasRecentlyCreated) {
+                event(new Registered($user));
+            }
+
+            // Log the user in
+            Auth::login($user);
+            $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
+            $token = $user->createToken('auth_token')->plainTextToken;
+            return redirect("{$frontendUrl}/Akun?token={$token}");
+           
         } catch (\Exception $e) {
+            Log::error('Google Auth Error: ' . $e->getMessage(), [
+                'exception' => $e,
+                'request' => $request->all()
+            ]);
+            
             return response()->json([
                 'status' => 'error',
-                'message' => 'An error occurred while updating the profile',
-                'error' => $e->getMessage()
-            ], 500);
+                'message' => 'Authentication failed. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 401);
         }
     }
 }

@@ -33,7 +33,7 @@ class OrderControllerApi extends Controller
      */
     public function CartIndex()
     {
-        $user = Auth::user();
+        $user = User::findOrFail(Auth::id());
         
         try {
             $order_items = Order::where('user_id', $user->id)
@@ -76,7 +76,7 @@ class OrderControllerApi extends Controller
      */
     public function addCart(Request $request)
     {
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
         try {
             $validated = $request->validate([
                 'catalog_id' => 'required|exists:catalogs,id',
@@ -142,7 +142,7 @@ class OrderControllerApi extends Controller
     public function removeItems(Request $request)
     {
         //
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
         try {
             if($user->orders->isEmpty()) {
                 return response()->json([
@@ -188,7 +188,7 @@ class OrderControllerApi extends Controller
      */
     public function checkout(Request $request)
     {
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
         
         try {
             if($user->orders->isEmpty()) {
@@ -274,7 +274,7 @@ class OrderControllerApi extends Controller
 
     public function uploadPaymentProof(Request $request)
     {
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
         
         try {
             $validator = Validator::make($request->all(), [
@@ -334,7 +334,7 @@ class OrderControllerApi extends Controller
     // Untuk admin verifikasi pembayaran
     public function AdminVerifPayment(Request $request, $id)
     {
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
         
         // Verify admin role
         if ($user->role != 'admin' && $user->role != 'owner') {
@@ -409,7 +409,7 @@ class OrderControllerApi extends Controller
 
     public function getMyOrders()
     {
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
         
         try {
             $orders = Order::where('user_id', $user->id)
@@ -463,7 +463,7 @@ class OrderControllerApi extends Controller
      */
     public function shipOrder(Request $request, $id)
     {
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
         
         // Verify admin role
         if ($user->role != 'admin' && $user->role != 'owner') {
@@ -538,7 +538,7 @@ class OrderControllerApi extends Controller
      */
     public function getOrdersWithDeliveryStatus()
     {
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
         
         // Verify admin role
         if ($user->role != 'admin' && $user->role != 'owner') {
@@ -606,7 +606,7 @@ class OrderControllerApi extends Controller
      */
     public function completeOrder($id)
     {
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
         
         // Verify admin role
         if ($user->role != 'admin' && $user->role != 'owner') {
@@ -659,7 +659,7 @@ class OrderControllerApi extends Controller
      */
     public function confirmReceipt($id)
     {
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
         
         try {
             // Find the order
@@ -713,7 +713,7 @@ class OrderControllerApi extends Controller
      */
     public function getDeliveryProof($id)
     {
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
         
         try {
             $order = Order::findOrFail($id);

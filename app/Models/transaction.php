@@ -12,7 +12,7 @@ use Laravel\Sanctum\HasApiTokens;
 class transaction extends Model
 {
     //
-    use HasApiTokens, HasFactory, Notifiable, SoftDeletes, HistoryTrait;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes, HistoryTrait, SoftDeletes;
     protected $fillable = [
         'order_id',  // ID dari order service
         'status',    // status pembayaran

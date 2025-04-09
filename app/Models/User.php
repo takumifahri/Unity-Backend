@@ -14,7 +14,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasApiTokens,HasFactory, Notifiable, HasRoles, HistoryTrait;
+    use HasApiTokens,HasFactory, Notifiable, HasRoles, HistoryTrait, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -23,12 +23,14 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'google_id',
+        'facebook_id',
         'email',
+        'email_verified_at',
         'role',
         'password',
         'total_order',
         'phone',
-        'address',
         'profile_photo',
     ];
 
@@ -58,5 +60,17 @@ class User extends Authenticatable
     public function orders()
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function isAdmin(){
+        return $this->hasRole('admin');
+    }
+
+    public function isUser(){
+        return $this->hasRole('user');
+    }
+
+    public function isOwner(){
+        return $this->hasRole('owner');
     }
 }
