@@ -82,10 +82,7 @@ class ProfileControllerApi extends Controller
                     'email' => 'sometimes|email|max:255',
                     'phone' => 'sometimes|string|max:255',
                     'gender' => 'sometimes|in:laki,perempuan',
-                    // 'profile_photo' => 'sometimes|image|mimes:jpg,jpeg,png|max:2048'
                 ], [
-                    // 'profile_photo.max' => 'The profile photo may not be greater than 2 MB.',
-                    // 'profile_photo.mimes' => 'The profile photo must be a file of type: jpg, jpeg, png.',
                     'name.required' => 'The name field is required.',
                     'phone.required' => 'The phone field is required.',
                     'gender.in' => 'The gender must be one of the following: male, female, or other.',
@@ -96,20 +93,9 @@ class ProfileControllerApi extends Controller
                     'phone' => $this->convertToWhatsapp( $validate['phone']) ?? $user->phone,
                     'gender'=> $validate['gender'] ?? $user->gender,
                     'email' => $validate['email'] ?? $user->email,
-                    // 'profile_photo' => $validate['profile_photo'] ?? $user->profile_photo,
                 ];
 
-                // if($request->hasFile('profile_photo')){
-                //     // Hapus foto profil lama jika perlu
-                //     if ($user->profile_photo && file_exists(storage_path('app/public/' . $user->profile_photo))) {
-                //         unlink(storage_path('app/public/' . $user->profile_photo));
-                //     }
-                    
-                //     $fileName = time() . '.' . $request->profile_photo->extension();
-                //     $request->profile_photo->move(storage_path('app/public/profile-photos'), $fileName);
-                //     $updateProfile['profile_photo'] = 'profile-photos/' . $fileName;
-                // }
-
+            
                 $user->update($updateProfile);
             
                 return response()->json([
@@ -230,4 +216,19 @@ class ProfileControllerApi extends Controller
             : response()->json(['message' => __($status)], 400);
     }
 
+    public function DeleteAccount(Request $request)
+    {
+        $user = User::findOrFail(Auth::id());
+        if (!$user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'User not found'
+            ], 404);
+        }
+        $user->delete();
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Account deleted successfully'
+        ]);
+    }
 }

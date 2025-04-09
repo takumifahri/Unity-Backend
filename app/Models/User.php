@@ -63,14 +63,14 @@ class User extends Authenticatable
     }
 
     public function isAdmin(){
-        return $this->hasRole('admin');
+        return $this->role === 'admin';
     }
 
     public function isUser(){
-        return $this->hasRole('user');
+        return $this->role === 'user';
     }
 
     public function isOwner(){
-        return $this->hasRole('owner');
+        return $this->role === 'owner';
     }
 }

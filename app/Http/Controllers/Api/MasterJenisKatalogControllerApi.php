@@ -49,9 +49,9 @@ class MasterJenisKatalogControllerApi extends Controller
      */
     public function store(Request $request)
     {
-    $user = User::findOrFail(Auth::id());
+        $user = User::findOrFail(Auth::id());
         // Cek apakah user memiliki role 'admin'
-        if ($user->isAdmin() || $user->isOwner()) {
+        if ($user->isOwner() || $user->isAdmin()) {
             try {
                 $validate = $request->validate([
                     'nama_jenis_katalog' => 'required|string|max:255',
