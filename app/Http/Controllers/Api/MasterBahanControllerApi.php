@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\master_bahan;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Spatie\Permission\Traits\HasRoles;
@@ -18,7 +19,7 @@ class MasterBahanControllerApi extends Controller
     {
         //
         $bahan = master_bahan::all();
-        $user = Auth::user();
+        $user = User::findOrFail(Auth::id());
         if($user->role == 'admin' || $user->role == 'owner'){
             try{
                 return response()->json([
@@ -48,7 +49,7 @@ class MasterBahanControllerApi extends Controller
     public function store(Request $request)
     {
         // Cek apakah user memiliki role 'admin'
-        $user = Auth::user();
+        $user = User::findOrFail(Auth::id());
         if ($user->role === 'admin' || $user->role === 'owner' ){
             try{
                 // Kode validasi dan penyimpanan tetap sama
@@ -114,7 +115,7 @@ class MasterBahanControllerApi extends Controller
     {
         //
         $bahanId = master_bahan::find($id);
-        $user = Auth::user();
+        $user = User::findOrFail(Auth::id());
         if($user->role == 'admin' || $user->role == 'owner'){
             try{
                 return response()->json([
@@ -151,7 +152,7 @@ class MasterBahanControllerApi extends Controller
             ], 404);
         }
         
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
 
         // Cek role user
         if ($user->role === 'admin' || $user->role === 'owner') {
@@ -226,7 +227,7 @@ class MasterBahanControllerApi extends Controller
         //
         $bahan = master_bahan::find($id);
         
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
 
         if ($bahan !== null){
             if ($user->role === 'admin' || $user->role === 'owner') {

@@ -12,7 +12,7 @@ use Laravel\Sanctum\HasApiTokens;
 class Order extends Model
 {
     //
-    use HasApiTokens, HasFactory, Notifiable, SoftDeletes, HistoryTrait;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes, HistoryTrait, SoftDeletes;
     protected $table = 'orders';
     protected $fillable = [
         'user_id',

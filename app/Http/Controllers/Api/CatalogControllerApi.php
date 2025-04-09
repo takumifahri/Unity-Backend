@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Catalog;
 use App\Models\History;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Spatie\Permission\Traits\HasRoles;
@@ -28,9 +29,9 @@ class CatalogControllerApi extends Controller
      */
     public function store(Request $request) 
     {
-        $user = Auth::user();
+        $user = User::findOrFail(Auth::id());
         // Cek apakah user memiliki role 'admin'
-        if ($user->role === 'admin' || $user->role === 'owner') {
+        if ($user->isAdmin() || $user->isOwner()) {
             try{
                 $validate = $request->validate([
                     'nama_katalog' => 'required|string|max:255',
@@ -104,10 +105,10 @@ class CatalogControllerApi extends Controller
     {
         //
         $catalog = Catalog::find($id);
-        $user = Auth::user();
+        $user = User::findOrFail(Auth::id());
         
         if ($catalog !== null){
-            if ($user->role === 'admin' || $user->role === 'owner') {
+            if ($user->isAdmin() || $user->isOwner()) {
                 try{
                     $validateData = $request->validate([
                         'stok' => 'required|numeric|min:0'
@@ -148,9 +149,9 @@ class CatalogControllerApi extends Controller
     {
         //
         $catalog = Catalog::find($id);
-        $user = Auth::user();
+        $user = User::findOrFail(Auth::id());
 
-        if ($user->role === 'admin' || $user->role === 'owner') {
+        if ($user->isAdmin() || $user->isOwner()) {
             try{
                 $validate = $request->validate([
                     'nama_katalog' => 'sometimes|string|max:255',
@@ -210,9 +211,9 @@ class CatalogControllerApi extends Controller
     {
         //
         $catalog = Catalog::find($id);
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
         if ($catalog !== null) {
-            if ($user->role === 'admin' || $user->role === 'owner') {
+            if ($user->isAdmin() || $user->isOwner()) {
                 $catalog->delete();
                 return response()->json([
                     'message' => 'Catalog deleted successfully',
@@ -234,9 +235,9 @@ class CatalogControllerApi extends Controller
 
     public function destroyReason(Request $request, $id)
     {
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
         // Validasi bahwa user adalah admin
-        if($user->role === 'admin' || $user->role === 'owner'){
+        if($user->isAdmin() || $user->isOwner()){
             try{
                 $request->validate([
                     'reason' => 'required|string'
@@ -265,9 +266,9 @@ class CatalogControllerApi extends Controller
     // Restore katalog yang telah di-soft delete
     public function restore($id)
     {
-        $user = Auth::user();
+    $user = User::findOrFail(Auth::id());
         $catalog = Catalog::withTrashed()->findOrFail($id);
-        if($user->role === 'admin' || $user->role === 'owner') {
+        if($user->isAdmin() || $user->isOwner()) {
             $catalog->restore();
 
             // Catat history restore

@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('receiver_name')->nullable();               // Nama penerima barang
             $table->text('notes')->nullable();                         // Catatan tambahan
             $table->enum('status', ['delivered', 'failed', 'pending'])->default('delivered'); // Status pengiriman
+            $table->softDeletes();
             $table->timestamps();
         });
     }

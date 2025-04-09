@@ -14,15 +14,18 @@ return new class extends Migration
         // First create users table without the foreign key
         Schema::create('users', function (Blueprint $table) {
             $table->id();
+            $table->string('google_id')->nullable();
+            $table->string('facebook_id')->nullable();
             $table->string('name');
             $table->enum('role', ['admin', 'user', 'owner'])->default('user');
+            $table->enum('gender',['laki', 'perempuan'])->nullable();
             $table->string('email')->unique();
             $table->integer('total_order')->default(0);
             $table->string('phone')->nullable();
-            // Remove address_id from here
             $table->string('profile_photo', 2048)->nullable();
             $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
+            $table->string('password')->nullable();
+            $table->softDeletes();
             $table->rememberToken();
             $table->timestamps();
         });

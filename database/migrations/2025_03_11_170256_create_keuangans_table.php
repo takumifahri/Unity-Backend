@@ -20,6 +20,7 @@ return new class extends Migration
             $table->integer('nominal');
             $table->date('tanggal');
             $table->enum('jenis_keuangan', ['pemasukan', 'pengeluaran']);
+            $table->softDeletes();
             $table->timestamps();
         });
     }
