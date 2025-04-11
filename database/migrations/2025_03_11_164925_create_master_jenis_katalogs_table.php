@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('nama_jenis_katalog');
             $table->text('deskripsi');
+            $table->json('tata_cara_pemakaian')->nullable();
             $table->timestamps();
             $table->softDeletes();
 

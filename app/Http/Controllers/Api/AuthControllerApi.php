@@ -22,17 +22,29 @@ class AuthControllerApi extends Controller
      */
     public function register(Request $request): JsonResponse
     {
+        
         $validateData = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'role' => ['required', 'in:admin,user,owner'],
+            'phone' => ['required', 'string', 'max:255'],
+            'gender' => ['required', 'in:male,female'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'isAgree' => ['required', 'boolean'],
         ]);
+
+        // Convert phone number to wa.me format
+        $phone = $validateData['phone'];
+        $formattedPhoneNumber = preg_replace('/^\+?62|^0/', '62', $phone);
+        $formattedPhoneNumber = 'https://wa.me/' . $formattedPhoneNumber;
 
         $user = User::create([  
             'name' => $validateData['name'],
             'email' => $validateData['email'],
+            'phone' => $formattedPhoneNumber,
             'role' => $validateData['role'],
+            'gender' => $validateData['gender'],
+            'isAgree' => $validateData['isAgree'],
             'password' => Hash::make($validateData['password']),
         ]);
 
@@ -64,7 +76,8 @@ class AuthControllerApi extends Controller
 
         // Ambil user yang berhasil login
         $user = User::where('email', $request->email)->firstOrFail();
-        
+        $user->isActive = true;
+        $user->save();
         // Hapus token lama jika ada
         $user->tokens()->delete();
         
@@ -78,10 +91,17 @@ class AuthControllerApi extends Controller
             'access_token' => $token,
             'token_type' => 'Bearer'
         ]);
-    }public function logout(Request $request)
+    }
+    public function logout(Request $request)
     {
         // Revoke semua token dari user yang sedang login
-        $request->user()->tokens()->delete();
+        // Set isActive to false
+        $user = $request->user();
+        $user->isActive = false;
+        $user->save();
+
+        // Revoke all tokens
+        $user->tokens()->delete();
         
         return response()->json([
             'status' => 'success',
@@ -137,6 +157,7 @@ class AuthControllerApi extends Controller
                     'role' => 'user',
                     'password' => Hash::make(Str::random(16)), // Optional: Generate a random password
                     'total_order' => 0, // Default value for total_order
+                    'isAgree' => true, // Default value for isAgree
                     'phone' => null, // Default value for phone
                     'profile_photo' => $googleUser->avatar ?? null, // Use Google avatar if available
                 ]

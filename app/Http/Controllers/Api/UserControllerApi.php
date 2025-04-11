@@ -38,7 +38,7 @@ class UserControllerApi extends Controller
     public function store(Request $request)
     {
         // Untuk manajemen user admin
-    $user = User::findOrFail(Auth::id());
+        $user = User::findOrFail(Auth::id());
         if ($user->isAdmin() || $user->isOwner()) {
             try {
                 $validate = $request->validate([
@@ -96,7 +96,7 @@ class UserControllerApi extends Controller
     public function show(string $id)
     {
         //
-    $user = User::findOrFail(Auth::id());
+        $user = User::findOrFail(Auth::id());
         if ($user->isAdmin() || $user->isOwner()) {
             $data = User::find($id);
             if ($data !== null) {
@@ -122,7 +122,7 @@ class UserControllerApi extends Controller
      */
     public function update(Request $request, string $id)
     {
-    $user = User::findOrFail(Auth::id());
+        $user = User::findOrFail(Auth::id());
         if ($user->isAdmin() || $user->isOwner()) {
             $data = User::find($id);
             if ($data !== null) {
