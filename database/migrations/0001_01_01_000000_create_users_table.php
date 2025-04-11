@@ -18,13 +18,15 @@ return new class extends Migration
             $table->string('facebook_id')->nullable();
             $table->string('name');
             $table->enum('role', ['admin', 'user', 'owner'])->default('user');
-            $table->enum('gender',['laki', 'perempuan'])->nullable();
+            $table->enum('gender',['male', 'female'])->nullable();
             $table->string('email')->unique();
             $table->integer('total_order')->default(0);
             $table->string('phone')->nullable();
             $table->string('profile_photo', 2048)->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password')->nullable();
+            $table->boolean('isActive')->default(false);
+            $table->boolean('isAgree')->default(false);
             $table->softDeletes();
             $table->rememberToken();
             $table->timestamps();

@@ -16,7 +16,7 @@ class MasterJenisKatalogControllerApi extends Controller
         $jenis = master_jenis_katalogs::all();
         $user = User::findOrFail(Auth::id());
         if($jenis !== null){
-            if($user->isAdmin()){
+            if($user->isAdmin() || $user->isOwner()){
                 try{
                     return response()->json([
                         'message' => 'Data master jenis katalog berhasil diambil',
@@ -56,16 +56,19 @@ class MasterJenisKatalogControllerApi extends Controller
                 $validate = $request->validate([
                     'nama_jenis_katalog' => 'required|string|max:255',
                     'deskripsi' => 'required|string',
+                    'tata_cara_pemakaian' => 'nullable|json',
                 ],
                 [
                     'nama_jenis_katalog.required' => 'Nama Data master jenis katalog harus diisi',
                     'deskripsi.required' => 'Deskripsi harus diisi',
+                    'tata_cara_pemakaia' => 'Tata cara pemakaian harus berupa format JSON yang valid',
                 ]);
 
                 // Simpan data jenis
                 $jenis = master_jenis_katalogs::create([
                     'nama_jenis_katalog' => $validate['nama_jenis_katalog'],
                     'deskripsi' => $validate['deskripsi'],
+                    'tata_cara_pemakaian' => $validate['tata_cara_pemakaian'] ?? null,
                 ]);
 
                 return response()->json([
@@ -95,9 +98,9 @@ class MasterJenisKatalogControllerApi extends Controller
     {
         //
         $jenisId = master_jenis_katalogs::find($id);
-    $user = User::findOrFail(Auth::id());
+        $user = User::findOrFail(Auth::id());
         if($jenisId !== null){
-            if($user->role == 'admin'){
+            if($user->isAdmin() || $user->isOwner()){
                 try{
                     return response()->json([
                         'message' => 'Success',
@@ -131,7 +134,7 @@ class MasterJenisKatalogControllerApi extends Controller
     {
         // Cek apakah data jenis ada
         $jenis = master_jenis_katalogs::find($id);
-    $user = User::findOrFail(Auth::id());
+        $user = User::findOrFail(Auth::id());
 
         if($jenis !== null){
             if ($user->isAdmin() || $user->isOwner()) {
@@ -139,10 +142,12 @@ class MasterJenisKatalogControllerApi extends Controller
                     $validate = $request->validate([
                         'nama_jenis_katalog' => 'sometimes|required|string|max:255',
                         'deskripsi' => 'sometimes|required|string',
+                        'tata_cara_pemakaian' => 'nullable|json',
                     ],
                     [
                         'nama_jenis_katalog.required' => 'Nama Data master jenis katalog harus diisi',
                         'deskripsi.required' => 'Deskripsi harus diisi',
+                        'tata_cara_pemakaian.json' => 'Tata cara pemakaian harus berupa format JSON yang valid',
                     ]);
     
                     // Update data jenis
@@ -186,7 +191,7 @@ class MasterJenisKatalogControllerApi extends Controller
         //
         $jenis = master_jenis_katalogs::find($id);
         
-    $user = User::findOrFail(Auth::id());
+        $user = User::findOrFail(Auth::id());
 
         if ($jenis !== null){
             if ($user->isAdmin() || $user->isOwner()) {

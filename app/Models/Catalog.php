@@ -17,11 +17,16 @@ class Catalog extends Model
     protected $fillable = [
         'nama_katalog',
         'deskripsi',
+        'details',
         'stok',
         'tipe_bahan_id',
         'jenis_katalog_id',
-        'harga',
+        'price',
+        'feature',
+        'size',
+        'size_guide',
         'gambar',
+        'colors',
     ];
 
     public function user()

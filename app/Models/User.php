@@ -32,6 +32,9 @@ class User extends Authenticatable
         'total_order',
         'phone',
         'profile_photo',
+        'isActive',
+        'isAgree',
+        'gender'
     ];
 
     /**

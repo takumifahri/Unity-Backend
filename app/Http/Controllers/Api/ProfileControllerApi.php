@@ -11,22 +11,22 @@ use Illuminate\Support\Facades\Password;
 
 class ProfileControllerApi extends Controller
 {
-    private function convertToWhatsapp($phone)
-    {
-        // Menghapus karakter non-numerik dari nomor telepon
-        $phone = preg_replace('/\D/', '', $phone);
+    // private function convertToWhatsapp($phone)
+    // {
+    //     // Menghapus karakter non-numerik dari nomor telepon
+    //     $phone = preg_replace('/\D/', '', $phone);
         
-        // Mengubah nomor telepon yang diawali dengan 08 menjadi format dengan kode negara Indonesia (62)
-        if (substr($phone, 0, 2) == '08') {
-            $phone = '62' . substr($phone, 1);
-        }
-        // Menghapus tanda + jika nomor telepon diawali dengan +62
-        elseif (substr($phone, 0, 3) == '620') {
-            $phone = '62' . substr($phone, 3);
-        }
+    //     // Mengubah nomor telepon yang diawali dengan 08 menjadi format dengan kode negara Indonesia (62)
+    //     if (substr($phone, 0, 2) == '08') {
+    //         $phone = '62' . substr($phone, 1);
+    //     }
+    //     // Menghapus tanda + jika nomor telepon diawali dengan +62
+    //     elseif (substr($phone, 0, 3) == '620') {
+    //         $phone = '62' . substr($phone, 3);
+    //     }
         
-        return 'https://wa.me/62'.$phone;
-    }
+    //     return 'https://wa.me/62'.$phone;
+    // }
 
     public function updateProfilePhoto(Request $request)
     {
@@ -40,15 +40,15 @@ class ProfileControllerApi extends Controller
                     'profile_photo.mimes' => 'The profile photo must be a file of type: jpg, jpeg, png.',
                 ]);
 
-                if($request->hasFile('profile_photo')){
+                if ($request->hasFile('profile_photo')) {
                     // Hapus foto profil lama jika perlu
-                    if ($user->profile_photo && file_exists(storage_path('app/public/' . $user->profile_photo))) {
-                        unlink(storage_path('app/public/' . $user->profile_photo));
+                    if ($user->profile_photo && file_exists(public_path('uploads/catalog/' . $user->profile_photo))) {
+                        unlink(public_path('uploads/profile /' . $user->profile_photo));
                     }
-                
+
                     $fileName = time() . '.' . $request->profile_photo->extension();
-                    $request->profile_photo->move(storage_path('app/public/profile-photos'), $fileName);
-                    $user->update(['profile_photo' => 'profile-photos/' . $fileName]);
+                    $request->profile_photo->move(public_path('uploads/profile  '), $fileName);
+                    $user->update(['profile_photo' => 'uploads/profile  /' . $fileName]);
                 }
             
                 return response()->json([
@@ -90,7 +90,8 @@ class ProfileControllerApi extends Controller
 
                 $updateProfile = [
                     'name' => $validate['name'] ?? $user->name,
-                    'phone' => $this->convertToWhatsapp( $validate['phone']) ?? $user->phone,
+                    // 'phone' => $this->convertToWhatsapp( $validate['phone']) ?? $user->phone,
+                    'phone' => $validate['phone'] ?? $user->phone,
                     'gender'=> $validate['gender'] ?? $user->gender,
                     'email' => $validate['email'] ?? $user->email,
                 ];

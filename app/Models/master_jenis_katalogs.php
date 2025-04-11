@@ -17,5 +17,6 @@ class master_jenis_katalogs extends Model
     protected $fillable = [
         'nama_jenis_katalog',
         'deskripsi',
+        'tata_cara_pemakaian'
     ];
 }

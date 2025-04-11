@@ -32,34 +32,53 @@ class CatalogControllerApi extends Controller
         $user = User::findOrFail(Auth::id());
         // Cek apakah user memiliki role 'admin'
         if ($user->isAdmin() || $user->isOwner()) {
-            try{
+            try {
                 $validate = $request->validate([
                     'nama_katalog' => 'required|string|max:255',
                     'deskripsi' => 'required|string',
-                    'tipe_bahan' => 'required|exists:master_bahans,id',
+                    'details' => 'required|string',
                     'stok' => 'required|numeric|min:0',
+                    'tipe_bahan' => 'required|exists:master_bahans,id',
                     'jenis_katalog' => 'required|exists:master_jenis_katalogs,id',
-                    'harga' => 'required|numeric|min:0',
+                    'price' => 'required|numeric|min:0',
+                    'feature' => 'required|json',
+                    'size' => 'required|in:S,M,L,XL',
+                    // 'size_guide' => 'required|array|in:S,M,L,XL',
+                    'size_guide' => 'nullable|in:S,M,L,XL',
+                    'colors' => 'required|in:Brown,Black,Navy,Red,Green',
                     'gambar' => 'required|file|mimes:jpeg,png,jpg,gif|max:2048',
                 ]);
+
                 // Handle file upload
                 if ($request->hasFile('gambar')) {
                     $fileName = time() . '.' . $request->gambar->extension();
-                    $request->gambar->move(public_path('uploads'), $fileName);
-                    
+                    $request->gambar->move(public_path('uploads/catalog'), $fileName);
                 }
+
                 $catalog = Catalog::create([
                     'nama_katalog' => $validate['nama_katalog'],
                     'deskripsi' => $validate['deskripsi'],
+                    'details' => $validate['details'],
                     'stok' => $validate['stok'],
                     'tipe_bahan_id' => $validate['tipe_bahan'],
                     'jenis_katalog_id' => $validate['jenis_katalog'],
-                    'harga' => $validate['harga'],
+                    'price' => $validate['price'],
+                    'feature' => $validate['feature'],
+                    'size' => $validate['size'],
+                    'colors' => $validate['colors'],
                     'gambar' => 'uploads/catalog/' . $fileName,
                 ]);
+
                 return response()->json([
                     'message' => 'Catalog created successfully',
-                    'data' => $catalog,
+                    'data' => $catalog->load([
+                        'tipe_bahan' => function ($query) use ($validate) {
+                            $query->where('id', $validate['tipe_bahan']);
+                        },
+                        'jenis_katalog' => function ($query) use ($validate) {
+                            $query->where('id', $validate['jenis_katalog']);
+                        }
+                    ]),
                     'status' => 'success'
                 ], 201);
             } catch (\Exception $e) {
@@ -156,32 +175,36 @@ class CatalogControllerApi extends Controller
                 $validate = $request->validate([
                     'nama_katalog' => 'sometimes|string|max:255',
                     'deskripsi' => 'sometimes|string',
+                    'details' => 'sometimes|string',
+                    'stok' => 'sometimes|numeric|min:0',
                     'tipe_bahan' => 'sometimes|exists:master_bahans,id',
                     'jenis_katalog' => 'sometimes|exists:master_jenis_katalogs,id',
-                    'harga' => 'sometimes|numeric|min:0',
+                    'price' => 'sometimes|numeric|min:0',
+                    'feature' => 'sometimes|json',
+                    'size' => 'sometimes|in:S,M,L,XL',
+                    'size_guide' => 'sometimes|array',
+                    'colors' => 'sometimes|in:Brown,Black,Navy,Red,Green',
                     'gambar' => 'sometimes|file|mimes:jpeg,png,jpg,gif|max:2048',
-                ],
-                [
-                    'nama_katalog.sometimes' => 'Nama katalog harus diisi',
-                    'deskripsi.sometimes' => 'Deskripsi harus diisi',
-                    'tipe_bahan.sometimes' => 'Tipe bahan harus diisi',
-                    'jenis_katalog.sometimes' => 'Jenis katalog harus diisi',
-                    'harga.sometimes' => 'Harga harus diisi',
-                    'gambar.sometimes' => 'Gambar harus diisi',
                 ]);
+
                 // Handle file upload
                 if ($request->hasFile('gambar')) {
                     $fileName = time() . '.' . $request->gambar->extension();
-                    $request->gambar->move(public_path('uploads'), $fileName);
+                    $request->gambar->move(public_path('uploads/catalog'), $fileName);
                 }
-                
+
                 $catalog->update([
                     'nama_katalog' => $request->has('nama_katalog') ? $validate['nama_katalog'] : $catalog->nama_katalog,
                     'deskripsi' => $request->has('deskripsi') ? $validate['deskripsi'] : $catalog->deskripsi,
+                    'details' => $request->has('details') ? $validate['details'] : $catalog->details,
+                    'stok' => $request->has('stok') ? $validate['stok'] : $catalog->stok,
                     'tipe_bahan_id' => $request->has('tipe_bahan') ? $validate['tipe_bahan'] : $catalog->tipe_bahan_id,
                     'jenis_katalog_id' => $request->has('jenis_katalog') ? $validate['jenis_katalog'] : $catalog->jenis_katalog_id,
-                    'harga' => $request->has('harga') ? $validate['harga'] : $catalog->harga,
-                    'gambar' => $request->hasFile('gambar') ? 'uploads/' . $fileName : $catalog->gambar,
+                    'price' => $request->has('price') ? $validate['price'] : $catalog->price,
+                    'feature' => $request->has('feature') ? $validate['feature'] : $catalog->feature,
+                    'size' => $request->has('size') ? $validate['size'] : $catalog->size,
+                    'colors' => $request->has('colors') ? $validate['colors'] : $catalog->colors,
+                    'gambar' => $request->hasFile('gambar') ? 'uploads/catalog/' . $fileName : $catalog->gambar,
                 ]);
 
                 return response()->json([
