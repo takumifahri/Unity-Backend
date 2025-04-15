@@ -24,13 +24,7 @@ return new class extends Migration
             $table->unsignedBigInteger('jenis_katalog_id');
             $table->integer('price');
             $table->json('feature')->nullable();
-            $table->enum('size', ["S", "M", "L", "XL"])->nullable();
-            $table->enum('size_guide', [
-                'S' => 'LD: 96cm, Panjang: 135cm',
-                'M' => 'LD: 100cm, Panjang: 137cm',
-                'L' => 'LD: 104cm, Panjang: 139cm',
-                'XL' => 'LD: 108cm, Panjang: 141cm',
-            ])->nullable();
+            
             $table->enum('colors', ["Brown", "Black", "Navy", "Red", "Green"])->nullable();
             $table->string('gambar')->nullable();
             $table->timestamps();
