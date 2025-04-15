@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
     return $request->user();
 });
+Route::get('/master_jenis/', [MasterJenisKatalogControllerApi::class, 'index']);
+Route::get('/master_jenis/{id}', [MasterJenisKatalogControllerApi::class, 'show']);
+
 
 Route::post('/auth/register', [AuthControllerApi::class, 'register']);
 Route::post('/auth/login', [AuthControllerApi::class, 'login']);
@@ -34,9 +37,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
     // data master jenis katalog
     Route::group(['prefix' => 'master_jenis'], function () {
-        Route::get('/', [MasterJenisKatalogControllerApi::class, 'index']);
         Route::post('/store', [MasterJenisKatalogControllerApi::class, 'store']);
-        Route::get('/show/{id}', [MasterJenisKatalogControllerApi::class, 'show']);
         Route::post('/update/{id}', [MasterJenisKatalogControllerApi::class, 'update']);
         Route::delete('/delete/{id}', [MasterJenisKatalogControllerApi::class, 'destroy']);
     });

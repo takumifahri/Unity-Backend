@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('google_id')->nullable();
             $table->string('facebook_id')->nullable();
             $table->string('name');
-            $table->enum('role', ['admin', 'user', 'owner'])->default('user');
+            $table->enum('role', ['admin', 'user', 'owner', 'developer'])->default('user');
             $table->enum('gender',['male', 'female'])->nullable();
             $table->string('email')->unique();
             $table->integer('total_order')->default(0);
@@ -27,6 +27,7 @@ return new class extends Migration
             $table->string('password')->nullable();
             $table->boolean('isActive')->default(false);
             $table->boolean('isAgree')->default(false);
+            // Remove location_id from here initially
             $table->softDeletes();
             $table->rememberToken();
             $table->timestamps();
@@ -40,14 +41,19 @@ return new class extends Migration
             $table->string('label');
             $table->decimal('latitude', 10, 7);
             $table->decimal('longitude', 10, 7);
+            // Add address fields for geocoding/display purposes
+            $table->string('address')->nullable();
+            $table->string('city')->nullable();
+            $table->string('region')->nullable(); // This will be useful for your polygon map
+            $table->string('postal_code')->nullable();
             $table->timestamps();
         });
 
-        // Finally add the address_id to users table
-        Schema::table('users', function (Blueprint $table) {
-            $table->unsignedBigInteger('address_id')->nullable();
-            $table->foreign('address_id')->references('id')->on('locations')->onDelete('cascade');
-        });
+        // // Finally add the address_id to users table
+        // Schema::table('users', function (Blueprint $table) {
+        //     $table->unsignedBigInteger('address_id')->nullable();
+        //     $table->foreign('address_id')->references('id')->on('locations')->onDelete('cascade');
+        // });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();

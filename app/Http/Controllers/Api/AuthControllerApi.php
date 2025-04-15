@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Exception;
 use Illuminate\Validation\Rules;
 use Laravel\Socialite\Facades\Socialite;
 
@@ -26,22 +27,18 @@ class AuthControllerApi extends Controller
         $validateData = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'role' => ['required', 'in:admin,user,owner'],
+            'role' => ['required', 'in:admin,user,owner,developer'],
             'phone' => ['required', 'string', 'max:255'],
             'gender' => ['required', 'in:male,female'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'isAgree' => ['required', 'boolean'],
         ]);
 
-        // Convert phone number to wa.me format
-        $phone = $validateData['phone'];
-        $formattedPhoneNumber = preg_replace('/^\+?62|^0/', '62', $phone);
-        $formattedPhoneNumber = 'https://wa.me/' . $formattedPhoneNumber;
-
+      
         $user = User::create([  
             'name' => $validateData['name'],
             'email' => $validateData['email'],
-            'phone' => $formattedPhoneNumber,
+            'phone' => $validateData['phone'],
             'role' => $validateData['role'],
             'gender' => $validateData['gender'],
             'isAgree' => $validateData['isAgree'],
@@ -187,4 +184,55 @@ class AuthControllerApi extends Controller
             ], 401);
         }
     }
+    public function redirectToFacebook()
+    {
+        return Socialite::driver('facebook')->redirect();
+    }
+
+
+    public function handleFacebookCallback(Request $request)
+    {
+        try {
+            // Get authenticated Facebook user
+            $facebookUser = Socialite::driver('facebook')->user();
+            
+            // Validate required fields
+            if (empty($facebookUser->email)) {
+                throw new \Exception('Email not provided by Facebook');
+            }
+
+            // Find or create user
+            $user = User::updateOrCreate(
+                ['email' => $facebookUser->email],
+                [
+                    'name' => $facebookUser->name ?? 'No Name Provided',
+                    'facebook_id' => $facebookUser->id,
+                    'email' => $facebookUser->email,
+                    'email_verified_at' => now(), // Mark email as verified
+                    'role' => 'user',
+                    'password' => Hash::make(Str::random(16)), // Optional: Generate a random password
+                    'total_order' => 0, // Default value for total_order
+                    'isAgree' => true, // Default value for isAgree
+                    'phone' => null, // Default value for phone
+                    'profile_photo' => $facebookUser->avatar ?? null, // Use Facebook avatar if available
+                ]
+            );
+
+            // Trigger registered event if new user
+            if ($user->wasRecentlyCreated) {
+                event(new Registered($user));
+            }
+
+            // Generate token and return response
+            $token = $user->createToken('auth_token')->plainTextToken;
+            
+            // Redirect to frontend with token
+            $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
+            return redirect()->away("{$frontendUrl}/Akun?token={$token}");
+            
+        } catch (Exception $e) {
+            return redirect()->away(config('app.frontend_url') . '/login-error?message=' . urlencode($e->getMessage()));
+        }
+    }
+
 }

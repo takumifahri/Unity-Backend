@@ -50,7 +50,7 @@ class MasterBahanControllerApi extends Controller
     {
         // Cek apakah user memiliki role 'admin'
         $user = User::findOrFail(Auth::id());
-        if ($user->role === 'admin' || $user->role === 'owner' ){
+        if ($user->isAdmin() | $user->isOwner() ){
             try{
                 // Kode validasi dan penyimpanan tetap sama
                 $validate = $request->validate([
@@ -59,7 +59,7 @@ class MasterBahanControllerApi extends Controller
                     'stok' => 'required|numeric|min:0',
                     'harga' => 'required|numeric|min:0',
                     'satuan' => 'required|string|max:255',
-                    'gambar_bahan' => 'nullable|file|image|max:2048',
+                    'gambar_bahan' => 'nullable|mimes: jpeg,jpg,png,webp|max:2048',
                 ],
                 [
                     'nama_bahan.required' => 'Nama bahan harus diisi',
@@ -155,7 +155,7 @@ class MasterBahanControllerApi extends Controller
     $user = User::findOrFail(Auth::id());
 
         // Cek role user
-        if ($user->role === 'admin' || $user->role === 'owner') {
+        if ($user->isAdmin() | $user->isOwner()) {
             try {
                 $validate = $request->validate([
                     'nama_bahan' => 'sometimes|required|string|max:255',
@@ -230,7 +230,7 @@ class MasterBahanControllerApi extends Controller
     $user = User::findOrFail(Auth::id());
 
         if ($bahan !== null){
-            if ($user->role === 'admin' || $user->role === 'owner') {
+            if ($user->isAdmin() | $user->isOwner()) {
                 try {
                     // Hapus gambar jika ada
                     if ($bahan->gambar_bahan && file_exists(public_path('uploads/' . $bahan->gambar_bahan))) {

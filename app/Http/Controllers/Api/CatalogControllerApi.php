@@ -14,10 +14,26 @@ class CatalogControllerApi extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        //
-        $productCatalogs = Catalog::all();
+        $query = Catalog::query();
+
+        // Filter by master_jenis_id if provided
+        if ($request->has('master_jenis_id')) {
+            $query->where('jenis_katalog_id', $request->master_jenis_id);
+        }
+        
+        // Filter by name or description using 'like' if provided
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('nama_katalog', 'like', "%$search%")
+                  ->orWhere('deskripsi', 'like', "%$search%");
+            });
+        }
+
+        $productCatalogs = $query->get();
+
         return response()->json([
             'message' => 'Success',
             'data' => $productCatalogs
@@ -65,6 +81,7 @@ class CatalogControllerApi extends Controller
                     'price' => $validate['price'],
                     'feature' => $validate['feature'],
                     'size' => $validate['size'],
+                    'size_guide' => $validate['size_guide'],
                     'colors' => $validate['colors'],
                     'gambar' => 'uploads/catalog/' . $fileName,
                 ]);
