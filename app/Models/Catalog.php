@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-
+use App\Models\catalog_colors;
 class Catalog extends Model
 {
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes, HistoryTrait;
@@ -23,10 +23,7 @@ class Catalog extends Model
         'jenis_katalog_id',
         'price',
         'feature',
-        'size',
-        'size_guide',
         'gambar',
-        'colors',
     ];
 
     public function user()
@@ -42,5 +39,13 @@ class Catalog extends Model
     public function jenis_katalog()
     {
         return $this->belongsTo(master_jenis_katalogs::class, 'jenis_katalog_id');
+    }
+    public function sizes()
+    {
+        return $this->hasMany(catalog_sizes::class);
+    }
+
+    public function colors(){
+        return $this->hasMany(catalog_colors::class);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\location;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -33,7 +34,7 @@ class ProfileControllerApi extends Controller
         $user = User::findOrFail(Auth::id());
         try{
             if($user != null){
-                $validate = $request->validate([
+                $request->validate([
                     'profile_photo' => 'required|image|mimes:jpg,jpeg,png|max:2048'
                 ], [
                     'profile_photo.max' => 'The profile photo may not be greater than 2 MB.',
@@ -42,20 +43,20 @@ class ProfileControllerApi extends Controller
 
                 if ($request->hasFile('profile_photo')) {
                     // Hapus foto profil lama jika perlu
-                    if ($user->profile_photo && file_exists(public_path('uploads/catalog/' . $user->profile_photo))) {
-                        unlink(public_path('uploads/profile /' . $user->profile_photo));
+                    if ($user->profile_photo && file_exists(public_path("uploads/profile/{$user->profile_photo}"))) {
+                        unlink(public_path("uploads/profile/{$user->profile_photo}"));
                     }
 
                     $fileName = time() . '.' . $request->profile_photo->extension();
-                    $request->profile_photo->move(public_path('uploads/profile  '), $fileName);
-                    $user->update(['profile_photo' => 'uploads/profile  /' . $fileName]);
+                    $request->profile_photo->move(public_path('uploads/profile'), $fileName);
+                    $user->update(['profile_photo' => "uploads/profile/{$fileName}"]);
                 }
             
                 return response()->json([
                     'status' => 'success',
                     'message' => 'Profile photo updated successfully',
                     'user' => $user,
-                    'profile_photo' => asset('storage/' . $user->profile_photo), // <--- tambahkan ini
+                    'profile_photo' => asset("storage/{$user->profile_photo}"),
                 ]);
             } else {
                 return response()->json([
@@ -71,34 +72,105 @@ class ProfileControllerApi extends Controller
             ], 500);
         }
     }
-
+    
     public function updateProfile(Request $request)
     {
         $user = User::findOrFail(Auth::id());
-        try{
-            if($user != null){
+        try {
+            if ($user != null) {
                 $validate = $request->validate([
                     'name' => 'sometimes|string|max:255',
                     'email' => 'sometimes|email|max:255',
                     'phone' => 'sometimes|string|max:255',
-                    'gender' => 'sometimes|in:laki,perempuan',
+                    'gender' => 'sometimes|in:male,female',
+                    // Location fields
+                    'label' => 'sometimes|string',
+                    'latitude' => 'sometimes|numeric',
+                    'longitude' => 'sometimes|numeric',
+                    'address' => 'sometimes|string',
+                    'city' => 'sometimes|string',
+                    'region' => 'sometimes|string',
+                    'postal_code' => 'sometimes|string',
                 ], [
                     'name.required' => 'The name field is required.',
                     'phone.required' => 'The phone field is required.',
-                    'gender.in' => 'The gender must be one of the following: male, female, or other.',
+                    'gender.in' => 'The gender must be one of the following: male, female.',
+                    'latitude.numeric' => 'The latitude must be a numeric value.',
+                    'longitude.numeric' => 'The longitude must be a numeric value.',
                 ]);
 
                 $updateProfile = [
                     'name' => $validate['name'] ?? $user->name,
-                    // 'phone' => $this->convertToWhatsapp( $validate['phone']) ?? $user->phone,
                     'phone' => $validate['phone'] ?? $user->phone,
-                    'gender'=> $validate['gender'] ?? $user->gender,
+                    'gender' => $validate['gender'] ?? $user->gender,
                     'email' => $validate['email'] ?? $user->email,
                 ];
 
-            
+                // Update basic user profile
                 $user->update($updateProfile);
-            
+
+                // Handle location update if any location field is provided
+                if (isset($validate['label']) || isset($validate['latitude']) || isset($validate['longitude'])) {
+                    // If user already has a location, update it
+                    if ($user->location_id) {
+                        $location = location::find($user->location_id);
+                        
+                        $locationData = [
+                            'label' => $validate['label'] ?? $location->label,
+                            'latitude' => $validate['latitude'] ?? $location->latitude,
+                            'longitude' => $validate['longitude'] ?? $location->longitude,
+                            'address' => $validate['address'] ?? $location->address,
+                            'city' => $validate['city'] ?? $location->city,
+                            'region' => $validate['region'] ?? $location->region,
+                            'postal_code' => $validate['postal_code'] ?? $location->postal_code,
+                        ];
+                        
+                        $location->update($locationData);
+                    } else {
+                        // Ensure all required location fields are present
+                        if (!isset($validate['label']) || !isset($validate['latitude']) || !isset($validate['longitude'])) {
+                            return response()->json([
+                                'status' => 'error',
+                                'message' => 'Label, latitude, and longitude are required when creating a new location'
+                            ], 422);
+                        }
+                        
+                        // If user doesn't have a location, create a new one
+                        $location = Location::create([
+                            'user_id' => $user->id,
+                            'label' => $validate['label'],
+                            'latitude' => $validate['latitude'],
+                            'longitude' => $validate['longitude'],
+                            'address' => $validate['address'] ?? null,
+                            'city' => $validate['city'] ?? null,
+                            'region' => $validate['region'] ?? null,
+                            'postal_code' => $validate['postal_code'] ?? null,
+                        ]);
+                        
+                        // Update user with new location ID
+                        $user->location_id = $location->id;
+                        $user->save();
+                    }
+                }
+                // If address is provided but no coordinates
+                if (isset($validate['address']) && (!isset($validate['latitude']) || !isset($validate['longitude']))) {
+                    // Build address string
+                    $addressString = $validate['address'];
+                    if (isset($validate['city'])) $addressString .= ', ' . $validate['city'];
+                    if (isset($validate['region'])) $addressString .= ', ' . $validate['region'];
+                    if (isset($validate['postal_code'])) $addressString .= ' ' . $validate['postal_code'];
+                    
+                    // Geocode the address (using a service like Google Maps, Nominatim/OpenStreetMap, etc.)
+                    $coordinates = $this->geocodeAddress($addressString);
+                    
+                    if ($coordinates) {
+                        $validate['latitude'] = $coordinates['latitude'];
+                        $validate['longitude'] = $coordinates['longitude'];
+                    }
+                }
+                // Refresh user data with location
+                $user = User::with('location')->find($user->id);
+                
                 return response()->json([
                     'status' => 'success',
                     'message' => 'Profile updated successfully',
@@ -107,7 +179,7 @@ class ProfileControllerApi extends Controller
             } else {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Unautheticated. Login first'
+                    'message' => 'Unauthenticated. Login first'
                 ], 401);
             }
         } catch (\Exception $e) {
@@ -117,6 +189,32 @@ class ProfileControllerApi extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    
+    private function geocodeAddress($address)
+    {
+        // Example using Nominatim (OpenStreetMap)
+        $address = urlencode($address);
+        $url = "https://nominatim.openstreetmap.org/search?q={$address}&format=json&limit=1";
+        
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'YourApp/1.0'); // Required by Nominatim's ToS
+        $response = curl_exec($ch);
+        curl_close($ch);
+        
+        $data = json_decode($response, true);
+        
+        if (!empty($data)) {
+            return [
+                'latitude' => $data[0]['lat'],
+                'longitude' => $data[0]['lon']
+            ];
+        }
+        
+        return null;
     }
     /**
      * Display a listing of the resource.
@@ -135,12 +233,15 @@ class ProfileControllerApi extends Controller
              ], 401);
          }
          
-         // Tambahkan return statement untuk mengembalikan data user
+         // Load the location relationship
+         $user->load('location');
+         
+         // Tambahkan return statement untuk mengembalikan data user dengan location
          return response()->json([
              'status' => 'success',
              'user' => $user
          ]);
-    }
+     }
 
     public function changePassword(Request $request){
         $user = User::findOrFail(Auth::id());

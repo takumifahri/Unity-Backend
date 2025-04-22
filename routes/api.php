@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthControllerApi;
 use App\Http\Controllers\Api\CatalogControllerApi;
 use App\Http\Controllers\Api\ContactUsControllerApi;
+use App\Http\Controllers\Api\CustomOrderControllerApi;
 use App\Http\Controllers\Api\HistoryControllerApi;
 use App\Http\Controllers\Api\MasterBahanControllerApi;
 use App\Http\Controllers\Api\MasterJenisKatalogControllerApi;
@@ -15,6 +16,9 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
     return $request->user();
 });
+Route::get('/master_jenis/', [MasterJenisKatalogControllerApi::class, 'index']);
+Route::get('/master_jenis/{id}', [MasterJenisKatalogControllerApi::class, 'show']);
+
 
 Route::post('/auth/register', [AuthControllerApi::class, 'register']);
 Route::post('/auth/login', [AuthControllerApi::class, 'login']);
@@ -34,9 +38,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
     // data master jenis katalog
     Route::group(['prefix' => 'master_jenis'], function () {
-        Route::get('/', [MasterJenisKatalogControllerApi::class, 'index']);
         Route::post('/store', [MasterJenisKatalogControllerApi::class, 'store']);
-        Route::get('/show/{id}', [MasterJenisKatalogControllerApi::class, 'show']);
         Route::post('/update/{id}', [MasterJenisKatalogControllerApi::class, 'update']);
         Route::delete('/delete/{id}', [MasterJenisKatalogControllerApi::class, 'destroy']);
     });
@@ -107,5 +109,11 @@ Route::prefix('/order')->group(function () {
         Route::get('/deliveryStatus', [OrderControllerApi::class, 'getOrdersWithDeliveryStatus']);
         Route::post('/recieved/{id}', [OrderControllerApi::class, 'shipOrder']);
         Route::post('/complete/{id}', [OrderControllerApi::class, 'completeOrder']);
+        
+        Route::prefix('/custom')->group(function(){
+            Route::get('/', [CustomOrderControllerApi::class, 'index']);
+            Route::post('/propose', [CustomOrderControllerApi::class, 'propose']);
+            Route::post('/accept/propose', [CustomOrderControllerApi::class, 'acceptPropose']);
+        });
     });
 });

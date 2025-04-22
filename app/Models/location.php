@@ -17,6 +17,10 @@ class location extends Model
         'label',
         'latitude',
         'longitude',
+        'address',
+        'city',
+        'region',
+        'postal_code',
     ];
 
     protected $table = 'locations';
@@ -25,4 +29,6 @@ class location extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    
 }

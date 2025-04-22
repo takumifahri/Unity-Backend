@@ -14,26 +14,18 @@ class MasterJenisKatalogControllerApi extends Controller
     {
         //
         $jenis = master_jenis_katalogs::all();
-        $user = User::findOrFail(Auth::id());
         if($jenis !== null){
-            if($user->isAdmin() || $user->isOwner()){
-                try{
-                    return response()->json([
-                        'message' => 'Data master jenis katalog berhasil diambil',
-                        'data' => $jenis,
-                        'status' => 'success'
-                    ]);
-                } catch (\Exception $e) {
-                    return response()->json([
-                        'message' => $e->getMessage(),
-                        'status' => 'error'
-                    ]);
-                }
-            } else {
+            try{
                 return response()->json([
-                    'message' => 'Unauthorized. Only admin can access this feature',
+                    'message' => 'Data master jenis katalog berhasil diambil',
+                    'data' => $jenis,
+                    'status' => 'success'
+                ]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'message' => $e->getMessage(),
                     'status' => 'error'
-                ], 403);
+                ]);
             }
         } else {
             return response()->json([
@@ -98,26 +90,18 @@ class MasterJenisKatalogControllerApi extends Controller
     {
         //
         $jenisId = master_jenis_katalogs::find($id);
-        $user = User::findOrFail(Auth::id());
         if($jenisId !== null){
-            if($user->isAdmin() || $user->isOwner()){
-                try{
-                    return response()->json([
-                        'message' => 'Success',
-                        'data' => $jenisId,
-                        'status' => 'success'
-                    ]);
-                } catch (\Exception $e) {
-                    return response()->json([
-                        'message' => $e->getMessage(),
-                        'status' => 'error'
-                    ]);
-                }
-            } else {
+            try{
                 return response()->json([
-                    'message' => 'Unauthorized. Only admin can access this feature',
+                    'message' => 'Success',
+                    'data' => $jenisId,
+                    'status' => 'success'
+                ]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'message' => $e->getMessage(),
                     'status' => 'error'
-                ], 403);
+                ]);
             }
         } else {
             return response()->json([

@@ -14,10 +14,26 @@ class CatalogControllerApi extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        //
-        $productCatalogs = Catalog::all();
+        $query = Catalog::with(['colors.sizes']);
+
+        // Filter by master_jenis_id if provided
+        if ($request->has('master_jenis_id')) {
+            $query->where('jenis_katalog_id', $request->master_jenis_id);
+        }
+        
+        // Filter by name or description using 'like' if provided
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('nama_katalog', 'like', "%$search%")
+                  ->orWhere('deskripsi', 'like', "%$search%");
+            });
+        }
+
+        $productCatalogs = $query->get();
+
         return response()->json([
             'message' => 'Success',
             'data' => $productCatalogs
@@ -30,7 +46,6 @@ class CatalogControllerApi extends Controller
     public function store(Request $request) 
     {
         $user = User::findOrFail(Auth::id());
-        // Cek apakah user memiliki role 'admin'
         if ($user->isAdmin() || $user->isOwner()) {
             try {
                 $validate = $request->validate([
@@ -42,19 +57,21 @@ class CatalogControllerApi extends Controller
                     'jenis_katalog' => 'required|exists:master_jenis_katalogs,id',
                     'price' => 'required|numeric|min:0',
                     'feature' => 'required|json',
-                    'size' => 'required|in:S,M,L,XL',
-                    // 'size_guide' => 'required|array|in:S,M,L,XL',
-                    'size_guide' => 'nullable|in:S,M,L,XL',
-                    'colors' => 'required|in:Brown,Black,Navy,Red,Green',
+                    'colors' => 'required|array', // Validasi untuk warna sebagai array
+                    'colors.*.color_name' => 'required|string', // Validasi nama warna
+                    'colors.*.sizes' => 'required|array', // Validasi untuk ukuran dalam warna
+                    'colors.*.sizes.*.size' => 'required|in:S,M,L,XL', // Validasi setiap ukuran
+                    'colors.*.sizes.*.stok' => 'required|numeric|min:0', // Validasi stok untuk setiap ukuran
                     'gambar' => 'required|file|mimes:jpeg,png,jpg,gif|max:2048',
                 ]);
-
+    
                 // Handle file upload
                 if ($request->hasFile('gambar')) {
                     $fileName = time() . '.' . $request->gambar->extension();
                     $request->gambar->move(public_path('uploads/catalog'), $fileName);
                 }
-
+    
+                // Buat catalog
                 $catalog = Catalog::create([
                     'nama_katalog' => $validate['nama_katalog'],
                     'deskripsi' => $validate['deskripsi'],
@@ -64,21 +81,28 @@ class CatalogControllerApi extends Controller
                     'jenis_katalog_id' => $validate['jenis_katalog'],
                     'price' => $validate['price'],
                     'feature' => $validate['feature'],
-                    'size' => $validate['size'],
-                    'colors' => $validate['colors'],
                     'gambar' => 'uploads/catalog/' . $fileName,
                 ]);
-
+    
+                // Simpan warna dan ukuran ke tabel catalog_colors dan catalog_sizes
+                foreach ($validate['colors'] as $colorData) {
+                    $color = $catalog->colors()->create([
+                        'color_name' => $colorData['color_name'],
+                    ]);
+                
+                    foreach ($colorData['sizes'] as $sizeData) {
+                        $color->sizes()->create([
+                            'catalog_id' => $catalog->id,
+                            'catalog_colors_id' => $color->id, // Pastikan nilai catalog_colors_id diberikan
+                            'size' => $sizeData['size'],
+                            'stok' => $sizeData['stok'],
+                        ]);
+                    }
+                }
+    
                 return response()->json([
                     'message' => 'Catalog created successfully',
-                    'data' => $catalog->load([
-                        'tipe_bahan' => function ($query) use ($validate) {
-                            $query->where('id', $validate['tipe_bahan']);
-                        },
-                        'jenis_katalog' => function ($query) use ($validate) {
-                            $query->where('id', $validate['jenis_katalog']);
-                        }
-                    ]),
+                    'data' => $catalog->load('colors.sizes'), // Muat relasi colors dan sizes
                     'status' => 'success'
                 ], 201);
             } catch (\Exception $e) {
@@ -87,15 +111,13 @@ class CatalogControllerApi extends Controller
                     'detail message' => $e->getMessage(),
                     'status' => 'failed'
                 ], 500);
-           }
+            }
         } else {
             return response()->json([
                 'message' => 'Unauthorized. Only admin can access this feature',
                 'status' => 'error'
             ], 403);
         }
-       
-       
     }
 
     /**
@@ -104,7 +126,7 @@ class CatalogControllerApi extends Controller
     public function show(string $id)
     {
         //
-        $catalog = Catalog::find($id);
+        $catalog = Catalog::with('colors.sizes')->find($id);
         if ($catalog !== null) {
             return response()->json([
                 'message' => 'Success',
