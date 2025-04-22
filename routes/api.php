@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthControllerApi;
 use App\Http\Controllers\Api\CatalogControllerApi;
 use App\Http\Controllers\Api\ContactUsControllerApi;
+use App\Http\Controllers\Api\CustomOrderControllerApi;
 use App\Http\Controllers\Api\HistoryControllerApi;
 use App\Http\Controllers\Api\MasterBahanControllerApi;
 use App\Http\Controllers\Api\MasterJenisKatalogControllerApi;
@@ -108,5 +109,11 @@ Route::prefix('/order')->group(function () {
         Route::get('/deliveryStatus', [OrderControllerApi::class, 'getOrdersWithDeliveryStatus']);
         Route::post('/recieved/{id}', [OrderControllerApi::class, 'shipOrder']);
         Route::post('/complete/{id}', [OrderControllerApi::class, 'completeOrder']);
+        
+        Route::prefix('/custom')->group(function(){
+            Route::get('/', [CustomOrderControllerApi::class, 'index']);
+            Route::post('/propose', [CustomOrderControllerApi::class, 'propose']);
+            Route::post('/accept/propose', [CustomOrderControllerApi::class, 'acceptPropose']);
+        });
     });
 });
