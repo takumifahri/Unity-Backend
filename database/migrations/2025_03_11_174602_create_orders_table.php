@@ -23,7 +23,7 @@ return new class extends Migration
             $table->integer('total_harga');
             $table->string('alamat');
             $table->enum('type', ['Pembelian', 'Pemesanan']);
-            $table->enum('status', ['Menunggu Pembayaran', 'Menunggu Konfirmasi', 'Diproses', 'Dikirim', 'Selesai']);
+            $table->enum('status', ['Menunggu Pembayaran', 'Menunggu_Konfirmasi', 'Diproses', 'Dikirim', 'Selesai']);
             $table->string('bukti_pembayaran')->nullable();
             $table->timestamps();
             $table->softDeletes();

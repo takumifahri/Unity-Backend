@@ -77,6 +77,7 @@ class User extends Authenticatable
         return in_array($this->role, ['owner', 'developer']);
     }
 
+
     public function location()
     {
         return $this->belongsTo(location::class);

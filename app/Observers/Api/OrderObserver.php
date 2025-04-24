@@ -20,7 +20,7 @@ class OrderObserver
     public function created(Order $order): void
     {
         // Decrement stock when order is created
-        if ($order->status == 'Menunggu Pembayaran') {
+        if ($order->status == 'Diproses') {
             $catalog = Catalog::find($order->catalog_id);
             if ($catalog) {
                 $catalog->stok -= $order->jumlah;
@@ -37,25 +37,20 @@ class OrderObserver
      */
     public function updated(Order $order): void
     {
-        // Check if quantity changed and update stock accordingly
-        if ($order->isDirty('jumlah') && !$order->isDirty('status')) {
-            $catalog = Catalog::find($order->catalog_id);
-            if ($catalog) {
-                // Restore original stock and deduct new quantity
-                $catalog->stok += $order->getOriginal('jumlah');
-                $catalog->stok -= $order->jumlah;
-                $catalog->save();
-            }
-        }
-
         // Handle status changes
         if ($order->isDirty('status')) {
             $oldStatus = $order->getOriginal('status');
             $newStatus = $order->status;
-
-            // If status changed from 'Menunggu Konfirmasi' to 'Diproses'
-            if ($oldStatus == 'Menunggu Konfirmasi' && $newStatus == 'Diproses') {
-                // Record transaction in keuangan table as income
+    
+            // === KURANGI STOK SAAT DIPROSES ===
+            if ($oldStatus === 'Menunggu Konfirmasi' && $newStatus === 'Diproses') {
+                $catalog = Catalog::find($order->catalog_id);
+                if ($catalog && $catalog->stok >= $order->jumlah) {
+                    $catalog->stok -= $order->jumlah;
+                    $catalog->save();
+                }
+    
+                // Catat pemasukan keuangan jika transaksi sukses
                 if ($order->transaction_id) {
                     $transaction = Transaction::find($order->transaction_id);
                     if ($transaction && $transaction->status == 'success') {
@@ -63,34 +58,35 @@ class OrderObserver
                     }
                 }
             }
-
-            // If order is cancelled or rejected, restore stock
-            if (in_array($oldStatus, ['Menunggu Pembayaran', 'Menunggu Konfirmasi']) && 
-                !in_array($newStatus, ['Menunggu Pembayaran', 'Menunggu Konfirmasi', 'Diproses', 'Dikirim', 'Selesai'])) {
+    
+            // === KEMBALIKAN STOK JIKA ORDER DIBATALKAN SEBELUM DIPROSES ===
+            if (in_array($oldStatus, ['Menunggu_Pembayaran', 'Menunggu Konfirmasi']) &&
+                !in_array($newStatus, ['Menunggu_Pembayaran', 'Menunggu Konfirmasi', 'Diproses', 'Dikirim', 'Selesai'])) {
                 $catalog = Catalog::find($order->catalog_id);
                 if ($catalog) {
                     $catalog->stok += $order->jumlah;
                     $catalog->save();
                 }
             }
-
-            // When order is marked as delivered or completed
-            if ($newStatus == 'Dikirim' || $newStatus == 'Selesai') {
-                // Any additional logic for delivered/completed orders
+    
+            // === OPSIONAL: Logika jika order sudah dikirim atau selesai ===
+            if (in_array($newStatus, ['Dikirim', 'Selesai'])) {
+                // Tambahkan logika lain kalau dibutuhkan
             }
         }
-
-        // Create history record for update
+    
+        // Catat riwayat perubahan
         $this->recordHistory($order, 'updated');
     }
+    
 
     /**
      * Handle the Order "deleted" event.
      */
     public function deleted(Order $order): void
     {
-        // If order is deleted and it was in 'Menunggu Pembayaran' status, restore stock
-        if (in_array($order->status, ['Menunggu Pembayaran', 'Menunggu Konfirmasi'])) {
+        // If order is deleted and it was in 'Menunggu_Pembayaran' status, restore stock
+        if (in_array($order->status, ['Menunggu_Pembayaran', 'Menunggu Konfirmasi'])) {
             $catalog = Catalog::find($order->catalog_id);
             if ($catalog) {
                 $catalog->stok += $order->jumlah;
@@ -108,7 +104,7 @@ class OrderObserver
     public function restored(Order $order): void
     {
         // If order is restored to pending status, decrement stock again
-        if (in_array($order->status, ['Menunggu Pembayaran', 'Menunggu Konfirmasi'])) {
+        if (in_array($order->status, ['Diproses'])) {
             $catalog = Catalog::find($order->catalog_id);
             if ($catalog) {
                 $catalog->stok -= $order->jumlah;
