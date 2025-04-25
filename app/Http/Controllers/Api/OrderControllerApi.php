@@ -319,7 +319,7 @@ class OrderControllerApi extends Controller
                 Order::where('transaction_id', $transaction->id)
                     ->update([
                         'bukti_pembayaran' => $path,
-                        'status' => 'Menunggu Konfirmasi'
+                        'status' => 'Menunggu_Konfirmasi'
                     ]);
             }
 
@@ -340,7 +340,7 @@ class OrderControllerApi extends Controller
 
     private function convertPayment($payment_method)
     {
-        $eWallets = ['dana'];
+        $eWallets = ['E-Wallet_Dana'];
         $bankTransfers = ['BCA', 'BNI'];
         $cash = ['Cash'];
 
