@@ -16,6 +16,11 @@ class keuangan extends Model
     protected $fillable = [
         'user_id',
         'nominal',
-        'reason',
+        'catalog_id',
+        'order_id',
+        'keterangan',
+        'jenis_pembayaran',
+        'tanggal',
+        'jenis_keuangan',
     ];
 }

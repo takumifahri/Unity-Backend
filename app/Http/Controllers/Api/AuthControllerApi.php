@@ -30,7 +30,7 @@ class AuthControllerApi extends Controller
             'role' => ['required', 'in:admin,user,owner,developer'],
             'phone' => ['required', 'string', 'max:255'],
             'gender' => ['required', 'in:male,female'],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'password' => ['required', Rules\Password::defaults()],
             'isAgree' => ['required', 'boolean'],
         ]);
 

@@ -35,6 +35,7 @@ class AdminOrderEmail extends Mailable
     public function build()
     {
         return $this->view('emails.custom-order.admin-notification')
+                    ->text('emails.custom-order.admin-notification-plain')
                     ->subject("[Admin] Custom Order #{$this->customOrder->id} Telah Disetujui")
                     ->with([
                         'orderId' => $this->customOrder->id,

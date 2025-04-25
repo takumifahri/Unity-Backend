@@ -13,6 +13,8 @@ return new class extends Migration
     {
         Schema::create('master_bahans', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('added_by')->nullable();
+            $table->foreign('added_by')->references('id')->on('users')->onDelete('set null');
             $table->string('nama_bahan');
             $table->integer('harga');
             $table->integer('stok');

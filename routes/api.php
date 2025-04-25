@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\CartControllerApi;
+use App\Http\Controllers\Api\Admin\CatalogPOSControllerApi;
 use App\Http\Controllers\Api\AuthControllerApi;
 use App\Http\Controllers\Api\CatalogControllerApi;
 use App\Http\Controllers\Api\ContactUsControllerApi;
@@ -115,5 +117,24 @@ Route::prefix('/order')->group(function () {
             Route::post('/propose', [CustomOrderControllerApi::class, 'propose']);
             Route::post('/accept/propose', [CustomOrderControllerApi::class, 'acceptPropose']);
         });
+    });
+});
+
+Route::prefix('/cashier')->group(function () {
+    // Add your cashier routes here
+    Route::middleware(['auth:sanctum'])->group(function () {
+        Route::prefix('catalog')->group(function () {
+            Route::get('/', [CatalogPOSControllerApi::class, 'index']);
+            Route::get('/show/{id}', [CatalogPOSControllerApi::class, 'show']);
+            Route::post('/add-cart', [CatalogPOSControllerApi::class, 'addCart']);
+        });
+
+        Route::prefix('order/cart')->group(function () {
+            Route::get('/', [CartControllerApi::class, 'index']);
+            Route::get('/show/{id}', [CartControllerApi::class, 'show']);
+            Route::post('/update/{id}', [CartControllerApi::class, 'update']);
+            Route::delete('/delete/{id}', [CartControllerApi::class, 'destroy']);
+        });
+      
     });
 });

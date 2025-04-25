@@ -13,12 +13,11 @@ return new class extends Migration
     {
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('order_id');
-            $table->foreign('order_id')->references('id')->on('orders')->onDelete('cascade');
+            $table->unsignedBigInteger('order_id');  // Hanya sebagai referensi, bukan relasi one-to-one
             $table->enum('status', ['pending', 'success', 'failure', 'expired', 'canceled']);
             $table->string('tujuan_transfer');
             $table->integer('amount');
-            $table->enum('payment_method', ['credit_card', 'bank_transfer', 'gopay', 'ovo', 'dana']);
+            $table->enum('payment_method', ['Cash', 'BCA', 'E-Wallet_Dana']);
             $table->string('bukti_transfer')->nullable();
             $table->timestamps();
             $table->softDeletes();
