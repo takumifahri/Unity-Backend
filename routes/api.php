@@ -108,6 +108,7 @@ Route::prefix('/order')->group(function () {
         Route::post('/admin/verif/{id}', [OrderControllerApi::class, 'AdminVerifPayment']);
         Route::get('/history_cart', [OrderControllerApi::class, 'getMyOrders']);
 
+        Route::post('/updateStatus/{id}', [OrderControllerApi::class, 'updateStatus']);
         Route::get('/deliveryStatus', [OrderControllerApi::class, 'getOrdersWithDeliveryStatus']);
         Route::post('/recieved/{id}', [OrderControllerApi::class, 'shipOrder']);
         Route::post('/complete/{id}', [OrderControllerApi::class, 'completeOrder']);

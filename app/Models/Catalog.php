@@ -23,6 +23,7 @@ class Catalog extends Model
         'jenis_katalog_id',
         'price',
         'feature',
+        'sold',
         'gambar',
     ];
 
