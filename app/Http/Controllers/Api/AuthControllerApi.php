@@ -23,37 +23,44 @@ class AuthControllerApi extends Controller
      */
     public function register(Request $request): JsonResponse
     {
-        
-        $validateData = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'role' => ['required', 'in:admin,user,owner,developer'],
-            'phone' => ['required', 'string', 'max:255'],
-            'gender' => ['required', 'in:male,female'],
-            'password' => ['required', Rules\Password::defaults()],
-            'isAgree' => ['required', 'boolean'],
-        ]);
-
-      
-        $user = User::create([  
-            'name' => $validateData['name'],
-            'email' => $validateData['email'],
-            'phone' => $validateData['phone'],
-            'role' => $validateData['role'],
-            'gender' => $validateData['gender'],
-            'isAgree' => $validateData['isAgree'],
-            'password' => Hash::make($validateData['password']),
-        ]);
-
-        event(new Registered($user));
-
-        Auth::login($user);
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'User created successfully',
-            'user' => $user
-        ]);
+        try{
+            $validateData = $request->validate([
+                'name' => ['required', 'string', 'max:255'],
+                'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+                'role' => ['required', 'in:admin,user,owner,developer'],
+                'phone' => ['required', 'string', 'max:255'],
+                'gender' => ['required', 'in:male,female'],
+                'password' => ['required', Rules\Password::defaults()],
+                'isAgree' => ['required', 'boolean'],
+            ]);
+    
+          
+            $user = User::create([  
+                'name' => $validateData['name'],
+                'email' => $validateData['email'],
+                'phone' => $validateData['phone'],
+                'role' => $validateData['role'],
+                'gender' => $validateData['gender'],
+                'isAgree' => $validateData['isAgree'],
+                'password' => Hash::make($validateData['password']),
+            ]);
+    
+            event(new Registered($user));
+    
+            Auth::login($user);
+    
+            return response()->json([
+                'status' => 'success',
+                'message' => 'User created successfully',
+                'user' => $user
+            ]);
+        }catch(\Exception $e){
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to create user',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function login(Request $request)
@@ -78,8 +85,8 @@ class AuthControllerApi extends Controller
         // Hapus token lama jika ada
         $user->tokens()->delete();
         
-        // Buat token baru
-        $token = $user->createToken('auth_token')->plainTextToken;
+        // Buat token baru dengan masa berlaku 2 hari
+        $token = $user->createToken('auth_token', ['*'], now()->addDays(2))->plainTextToken;
 
         return response()->json([
             'status' => 'success',

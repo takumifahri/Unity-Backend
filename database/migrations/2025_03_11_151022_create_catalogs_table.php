@@ -20,11 +20,12 @@ return new class extends Migration
             $table->text('deskripsi');
             $table->string('details');
             $table->integer('stok');
-            $table->unsignedBigInteger('tipe_bahan_id');
-            $table->unsignedBigInteger('jenis_katalog_id');
+            $table->string('bahan');
+            // $table->unsignedBigInteger('tipe_bahan_id');
+            // $table->unsignedBigInteger('jenis_katalog_id');
             $table->integer('price');
             $table->json('feature')->nullable();
-            
+            $table->integer('sold')->nullable()->default(0);
             $table->enum('colors', ["Brown", "Black", "Navy", "Red", "Green"])->nullable();
             $table->string('gambar')->nullable();
             $table->timestamps();

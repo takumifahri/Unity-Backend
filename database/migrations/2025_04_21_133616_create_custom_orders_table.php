@@ -21,7 +21,8 @@ return new class extends Migration
             $table->string('ukuran');
             $table->enum('sumber_kain', ['konveksi', 'sendiri'])->default('konveksi');
             $table->unsignedBigInteger('master_bahan_id')->nullable()->onDelete('cascade');
-            $table->enum('status', ['pending', 'proses', 'selesai'])->default('pending');   
+            $table->enum('status', ['pending', 'proses', 'selesai'])->default('pending');  
+            $table->enum('status_pembayaran', ['belum_bayar', 'sudah_bayar'])->default('belum_bayar'); 
             $table->string('gambar_referensi')->nullable();
             $table->unsignedBigInteger('approved_by')->nullable();
             $table->text('catatan')->nullable();

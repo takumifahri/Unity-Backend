@@ -355,14 +355,58 @@ class OrderControllerApi extends Controller
         return 'Unknown';
     }
 
+    // public function updateStatus(Request $request, $id)
+    // {
+    //     $user = User::findOrFail(Auth::id());
+
+    //     if($user->isAdmin() || $user->isOwner())
+    // }
+
+    public function updateStatus(Request $request, $id)
+    {
+        $user = User::findOrFail(Auth::id());
+        if ($user->isAdmin() || $user->isOwner()) {
+            try {
+                $validator = Validator::make($request->all(), [
+                    'status' => 'required|in:Menunggu_Pembayaran,Menunggu_Konfirmasi,Diproses,Dikirim,Selesai',
+                ]);
+
+                if ($validator->fails()) {
+                    return response()->json(['errors' => $validator->errors()], 422);
+                }
+
+                $order = Order::findOrFail($id);
+
+                // Update order status
+                $order->status = $request->input('status');
+                $order->save();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Order status updated successfully',
+                    'data' => $order
+                ], 200);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error updating order status',
+                    'error' => $e->getMessage()
+                ], 500);
+            }
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+    }
 
     // Untuk admin verifikasi pembayaran
     public function AdminVerifPayment(Request $request, $id)
     {
         $user = User::findOrFail(Auth::id());
         
-        if($user->isOwner() || $user->isAdmin()) {
-            // User is admin or owner
+        if ($user->isOwner() || $user->isAdmin()) {
             try {
                 DB::beginTransaction();
                 
@@ -380,11 +424,11 @@ class OrderControllerApi extends Controller
                     $transaction->status = 'success';
                     
                     // Update all orders associated with this transaction
-                    $orders = Order::where('transaction_id', $transaction->id)
-                        ->get();
+                    $orders = Order::where('transaction_id', $transaction->id)->get();
                     
                     $catalogIds = $orders->pluck('catalog_id')->toArray();
                     $catalogs = Catalog::whereIn('id', $catalogIds)->get();
+                    
                     foreach ($orders as $order) {
                         $order->status = 'Diproses';
                         $order->save();
@@ -401,6 +445,12 @@ class OrderControllerApi extends Controller
                         $keuangan->tanggal = now();
                         $keuangan->jenis_keuangan = 'pemasukan';
                         $keuangan->save();
+    
+                        // Tambahkan jumlah barang yang terjual ke kolom `sold` di tabel `catalogs`
+                        if ($catalog) {
+                            $catalog->sold += $order->jumlah;
+                            $catalog->save();
+                        }
                     }
                     
                 } else {
@@ -436,7 +486,6 @@ class OrderControllerApi extends Controller
                 'message' => 'Unauthorized'
             ], 403);
         }
-        
     }
 
     public function getMyOrders(Request $request)
@@ -525,7 +574,7 @@ class OrderControllerApi extends Controller
                 $order = Order::findOrFail($id);
                 
                 // Check if order is in the correct status to be shipped
-                if ($order->status != 'Diproses') {
+                if ($order->status != 'Sedang_Dikirim') {
                     return response()->json([
                         'success' => false,
                         'message' => 'Order cannot be shipped. Current status: ' . $order->status
@@ -548,7 +597,7 @@ class OrderControllerApi extends Controller
                 ]);
                 
                 // Update order status
-                $order->status = 'Dikirim';
+                $order->status = 'Sudah_Terkirim';
                 $order->save();
                 
                 return response()->json([
@@ -583,7 +632,6 @@ class OrderControllerApi extends Controller
     public function getOrdersWithDeliveryStatus()
     {
     $user = User::findOrFail(Auth::id());
-        
         // Verify admin role
         if ($user->isOwner() || $user->isAdmin()) {
             try {
@@ -723,7 +771,7 @@ class OrderControllerApi extends Controller
             }
             
             // Check if order is in the correct status to be confirmed
-            if ($order->status != 'Dikirim') {
+            if ($order->status != 'Sudah_Terkirim') {
                 return response()->json([
                     'success' => false,
                     'message' => 'Order cannot be confirmed. Current status: ' . $order->status
