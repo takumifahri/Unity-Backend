@@ -63,15 +63,16 @@
         <div class="order-detail">
             <h3>Detail Pesanan:</h3>
             <ul>
+                <li><strong>Nama:</strong> {{ $nama }}</li>
+                <li><strong>Email:</strong> {{ $email }}</li>
+                <li><strong>No. Telepon:</strong> {{ $noTelp }}</li>
                 <li><strong>Jenis Baju:</strong> {{ $jenisBaju }}</li>
                 <li><strong>Ukuran:</strong> {{ $ukuran }}</li>
-                @if($estimasiWaktu)
-                <li><strong>Estimasi Waktu Pengerjaan:</strong> {{ $estimasiWaktu }}</li>
-                @endif
+                <li><strong>Jumlah:</strong> {{ $jumlah }}</li>
             </ul>
             
             @if($catatan)
-            <h3>Catatan dari Tim Kami:</h3>
+            <h3>Catatan untuk Tim Kami:</h3>
             <p>{{ $catatan }}</p>
             @endif
         </div>

@@ -33,8 +33,8 @@ return new class extends Migration
 
         
             // Foreign Keys
-            $table->foreign('tipe_bahan_id')->references('id')->on('master_bahans')->onDelete('cascade');
-            $table->foreign('jenis_katalog_id')->references('id')->on('master_jenis_katalogs')->onDelete('cascade');
+            // $table->foreign('tipe_bahan_id')->references('id')->on('master_bahans')->onDelete('cascade');
+            // $table->foreign('jenis_katalog_id')->references('id')->on('master_jenis_katalogs')->onDelete('cascade');
         });
         
     }

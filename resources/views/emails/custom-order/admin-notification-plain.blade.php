@@ -3,10 +3,14 @@ Halo Admin,
 
 Custom order berikut telah disetujui dan siap untuk diproses:
 
-DETAIL PESANAN #{{ $orderId }}:
+DETAIL PESANAN Ke-{{ $orderId }}:
 - Nama Pelanggan: {{ $nama }}
+- Email: {{ $email }}
+- No. Telepon: {{ $noTelp }}
 - Jenis Baju: {{ $jenisBaju }}
 - Ukuran: {{ $ukuran }}
+- Jumlah: {{ $jumlah }}
+- Sumber Kain: {{ $sumberKain }}
 @if($estimasiWaktu)
 - Estimasi Waktu Pengerjaan: {{ $estimasiWaktu }}
 @endif

@@ -14,14 +14,18 @@ return new class extends Migration
     {
         Schema::create('custom_orders', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('user_id')->nullable();
             $table->string('nama_lengkap');
             $table->string('no_telp');
             $table->string('email');
             $table->string('jenis_baju');
             $table->string('ukuran');
-            $table->enum('sumber_kain', ['konveksi', 'sendiri'])->default('konveksi');
-            $table->unsignedBigInteger('master_bahan_id')->nullable()->onDelete('cascade');
-            $table->enum('status', ['pending', 'proses', 'selesai'])->default('pending');  
+            $table->string('jumlah')->nullable();
+            $table->integer('total_harga')->nullable();
+            $table->enum('sumber_kain', ['konveksi', 'sendiri'])->default('sendiri');
+            $table->string('detail_bahan')->nullable();
+            // $table->unsignedBigInteger('master_bahan_id')->nullable()->onDelete('cascade');
+            $table->enum('status', ['pending', 'disetujui', 'proses', 'selesai', 'ditolak', 'dibatalkan'])->default('pending');  
             $table->enum('status_pembayaran', ['belum_bayar', 'sudah_bayar'])->default('belum_bayar'); 
             $table->string('gambar_referensi')->nullable();
             $table->unsignedBigInteger('approved_by')->nullable();

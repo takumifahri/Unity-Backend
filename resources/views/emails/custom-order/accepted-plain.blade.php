@@ -4,16 +4,26 @@ Halo {{ $nama }},
 Kami dengan senang hati memberitahukan bahwa custom order Anda telah disetujui.
 
 DETAIL PESANAN:
+- Nama: {{ $nama }}
+- Email: {{ $email }}
+- No. Telepon: {{ $noTelp }}
 - Jenis Baju: {{ $jenisBaju }}
 - Ukuran: {{ $ukuran }}
-@if($estimasiWaktu)
+- Jumlah: {{ $jumlah }}
+
+@if($catatan)
+CATATAN UNTUK TIM KAMI:
+{{ $catatan }}
+@endif
+
+{{-- @if($estimasiWaktu)
 - Estimasi Waktu Pengerjaan: {{ $estimasiWaktu }}
 @endif
 
 @if($catatan)
 CATATAN DARI TIM KAMI:
 {{ $catatan }}
-@endif
+@endif --}}
 
 Tim kami akan segera mulai memproses pesanan Anda. Jika Anda memiliki pertanyaan atau membutuhkan informasi lebih lanjut, jangan ragu untuk menghubungi kami.
 

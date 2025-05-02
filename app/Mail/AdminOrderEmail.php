@@ -39,9 +39,18 @@ class AdminOrderEmail extends Mailable
                     ->subject("[Admin] Custom Order #{$this->customOrder->id} Telah Disetujui")
                     ->with([
                         'orderId' => $this->customOrder->id,
+                        // 'nama' => $this->customOrder->nama_lengkap,
+                        // 'jenisBaju' => $this->customOrder->jenis_baju,
+                        // 'ukuran' => $this->customOrder->ukuran,
+                        // 'estimasiWaktu' => $this->customOrder->estimasi_waktu,
+                        // 'catatan' => $this->customOrder->catatan
                         'nama' => $this->customOrder->nama_lengkap,
+                        'email' => $this->customOrder->email,
+                        'noTelp' => $this->customOrder->no_telp,
                         'jenisBaju' => $this->customOrder->jenis_baju,
                         'ukuran' => $this->customOrder->ukuran,
+                        'jumlah' => $this->customOrder->jumlah,
+                        'sumberKain' => $this->customOrder->sumber_kain,
                         'estimasiWaktu' => $this->customOrder->estimasi_waktu,
                         'catatan' => $this->customOrder->catatan
                     ]);

@@ -53,8 +53,9 @@ class CatalogControllerApi extends Controller
                     'deskripsi' => 'required|string',
                     'details' => 'required|string',
                     'stok' => 'required|numeric|min:0',
-                    'tipe_bahan' => 'required|exists:master_bahans,id',
-                    'jenis_katalog' => 'required|exists:master_jenis_katalogs,id',
+                    // 'bahan' => 'required|exists:master_bahans,id',
+                    'bahan' => 'required|string',
+                    // 'jenis_katalog' => 'required|exists:master_jenis_katalogs,id',
                     'price' => 'required|numeric|min:0',
                     'feature' => 'required|json',
                     'colors' => 'required|array', // Validasi untuk warna sebagai array
@@ -77,8 +78,8 @@ class CatalogControllerApi extends Controller
                     'deskripsi' => $validate['deskripsi'],
                     'details' => $validate['details'],
                     'stok' => $validate['stok'],
-                    'tipe_bahan_id' => $validate['tipe_bahan'],
-                    'jenis_katalog_id' => $validate['jenis_katalog'],
+                    'bahan' => $validate['bahan'],
+                    // 'jenis_katalog_id' => $validate['jenis_katalog'],
                     'price' => $validate['price'],
                     'feature' => $validate['feature'],
                     'gambar' => 'uploads/catalog/' . $fileName,
@@ -199,8 +200,9 @@ class CatalogControllerApi extends Controller
                     'deskripsi' => 'sometimes|string',
                     'details' => 'sometimes|string',
                     'stok' => 'sometimes|numeric|min:0',
-                    'tipe_bahan' => 'sometimes|exists:master_bahans,id',
-                    'jenis_katalog' => 'sometimes|exists:master_jenis_katalogs,id',
+                    // 'bahan' => 'sometimes|exists:master_bahans,id',
+                    'bahan' => 'sometimes|string',
+                    // 'jenis_katalog' => 'sometimes|exists:master_jenis_katalogs,id',
                     'price' => 'sometimes|numeric|min:0',
                     'feature' => 'sometimes|json',
                     'size' => 'sometimes|in:S,M,L,XL',
@@ -220,8 +222,8 @@ class CatalogControllerApi extends Controller
                     'deskripsi' => $request->has('deskripsi') ? $validate['deskripsi'] : $catalog->deskripsi,
                     'details' => $request->has('details') ? $validate['details'] : $catalog->details,
                     'stok' => $request->has('stok') ? $validate['stok'] : $catalog->stok,
-                    'tipe_bahan_id' => $request->has('tipe_bahan') ? $validate['tipe_bahan'] : $catalog->tipe_bahan_id,
-                    'jenis_katalog_id' => $request->has('jenis_katalog') ? $validate['jenis_katalog'] : $catalog->jenis_katalog_id,
+                    'bahan' => $request->has('bahan') ? $validate['bahan'] : $catalog->bahan,
+                    // 'jenis_katalog_id' => $request->has('jenis_katalog') ? $validate['jenis_katalog'] : $catalog->jenis_katalog_id,
                     'price' => $request->has('price') ? $validate['price'] : $catalog->price,
                     'feature' => $request->has('feature') ? $validate['feature'] : $catalog->feature,
                     'size' => $request->has('size') ? $validate['size'] : $catalog->size,
@@ -256,7 +258,7 @@ class CatalogControllerApi extends Controller
     {
         //
         $catalog = Catalog::find($id);
-    $user = User::findOrFail(Auth::id());
+        $user = User::findOrFail(Auth::id());
         if ($catalog !== null) {
             if ($user->isAdmin() || $user->isOwner()) {
                 $catalog->delete();

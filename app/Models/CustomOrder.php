@@ -13,15 +13,22 @@ class CustomOrder extends Model
     //
     use HasApiTokens, SoftDeletes, HasFactory, Notifiable;
     protected $fillable = [
+        'user_id',
         'nama_lengkap',
         'no_telp',
         'email',
         'jenis_baju',
         'ukuran',
-        'status',
+        'jumlah',
+        'total_harga',
         'sumber_kain',
-        'master_bahan_id',
+        'detail_bahan',
+        'status',
+        'status_pembayaran',
         'gambar_referensi',
+        'approved_by',
+        'catatan',
+        'approved_at',
         'estimasi_waktu'
     ];
 

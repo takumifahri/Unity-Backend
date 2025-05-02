@@ -89,7 +89,7 @@ class OrderObserver
         if (in_array($order->status, ['Menunggu_Pembayaran', 'Menunggu Konfirmasi'])) {
             $catalog = Catalog::find($order->catalog_id);
             if ($catalog) {
-                $catalog->stok += $order->jumlah;
+                // $catalog->stok += $order->jumlah;
                 $catalog->save();
             }
         }

@@ -100,15 +100,16 @@ Route::prefix('/contactus')->group(function () {
 Route::prefix('/order')->group(function () {
     // Add your order routes here
     Route::middleware(['auth:sanctum'])->group(function () {
+        Route::get('/', [OrderControllerApi::class, 'index']);
         Route::get('/itemlist', [OrderControllerApi::class, 'CartIndex']);
         Route::post('/additem', [OrderControllerApi::class, 'addCart']);
-        Route::delete('/removeItem/{id}', [OrderControllerApi::class, 'removeItems']);
+        Route::delete('/removeItem', [OrderControllerApi::class, 'removeItems']);
         Route::post('/checkout', [OrderControllerApi::class, 'checkout']);
         Route::post('/checkout/buktibayar', [OrderControllerApi::class, 'uploadPaymentProof']);
         Route::post('/admin/verif/{id}', [OrderControllerApi::class, 'AdminVerifPayment']);
         Route::get('/history_cart', [OrderControllerApi::class, 'getMyOrders']);
 
-        Route::post('/updateStatus/{id}', [OrderControllerApi::class, 'updateStatus']);
+        Route::post('/sendToDelivery/{id}', [OrderControllerApi::class, 'sendToDelivery']);
         Route::get('/deliveryStatus', [OrderControllerApi::class, 'getOrdersWithDeliveryStatus']);
         Route::post('/recieved/{id}', [OrderControllerApi::class, 'shipOrder']);
         Route::post('/complete/{id}', [OrderControllerApi::class, 'completeOrder']);
@@ -117,6 +118,7 @@ Route::prefix('/order')->group(function () {
             Route::get('/', [CustomOrderControllerApi::class, 'index']);
             Route::post('/propose', [CustomOrderControllerApi::class, 'propose']);
             Route::post('/accept/propose', [CustomOrderControllerApi::class, 'acceptPropose']);
+            Route::post('/finalize/{id}', [CustomOrderControllerApi::class, 'updateStatus']);
         });
     });
 });
