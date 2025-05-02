@@ -39,8 +39,12 @@ class CustomerorderMail extends Mailable
                     ->subject("Custom Order Anda Telah Disetujui - {$this->customOrder->jenis_baju}")
                     ->with([
                         'nama' => $this->customOrder->nama_lengkap,
+                        'email' => $this->customOrder->email,
+                        'noTelp' => $this->customOrder->no_telp,
                         'jenisBaju' => $this->customOrder->jenis_baju,
                         'ukuran' => $this->customOrder->ukuran,
+                        'jumlah' => $this->customOrder->jumlah,
+                        'sumberKain' => $this->customOrder->sumber_kain,
                         'estimasiWaktu' => $this->customOrder->estimasi_waktu,
                         'catatan' => $this->customOrder->catatan
                     ]);

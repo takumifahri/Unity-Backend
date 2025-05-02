@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Catalog;
+use App\Models\CustomOrder;
 use App\Models\DeliveryProof;
 use App\Models\keuangan;
 use App\Models\Order;
@@ -26,6 +27,50 @@ class OrderControllerApi extends Controller
         return $payment_details[$payment_method] ?? 'Bank BCA: 2670342134 a.n. Andi Setiawan';
     }
 
+    public function index() {
+        $user = User::findOrFail(Auth::id());
+        if($user->isUser()) {
+           try{
+                $orders = Order::where('user_id', $user->id)
+                    ->with(['catalog', 'transaction', 'customOrder'])
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $orders
+                ]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error retrieving orders',
+                    'error' => $e->getMessage()
+                ], 500);
+            }
+        } else if($user->isAdmin() || $user->isOwner()) {
+            try {
+                $orders = Order::with(['catalog', 'transaction', 'customOrder'])
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $orders
+                ]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error retrieving orders',
+                    'error' => $e->getMessage()
+                ], 500);
+            }
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+    }
     /**
      * Display a listing of the resource.
      */
@@ -161,7 +206,7 @@ class OrderControllerApi extends Controller
                         ->where('status', 'Menunggu_Pembayaran')
                         ->first();
             
-            if($order->isEmpty()) {
+            if(is_null($order)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Item not found in cart'
@@ -194,7 +239,7 @@ class OrderControllerApi extends Controller
             // Validate basic inputs
             $validator = Validator::make($request->all(), [
                 'payment_method' => 'required|in:BCA,E-Wallet_Dana,Cash',
-                'alamat' => 'required|string',
+                // 'alamat' => 'required|string',
                 'type' => 'required|in:Pembelian,Pemesanan',
                 'order_ids' => 'required|array',  // Array of order IDs to checkout
                 'order_ids.*' => 'exists:orders,id'  // Validate each order ID exists
@@ -249,7 +294,7 @@ class OrderControllerApi extends Controller
             // Update all selected cart items with transaction ID and address
             foreach ($cartItems as $item) {
                 $item->transaction_id = $transaction->id;
-                $item->alamat = $request->alamat;
+                // $item->alamat = $request->alamat;
                 $item->type = $request->type;
                 $item->save();
             }
@@ -362,13 +407,13 @@ class OrderControllerApi extends Controller
     //     if($user->isAdmin() || $user->isOwner())
     // }
 
-    public function updateStatus(Request $request, $id)
+    public function sendToDelivery(Request $request, $id)
     {
         $user = User::findOrFail(Auth::id());
         if ($user->isAdmin() || $user->isOwner()) {
             try {
                 $validator = Validator::make($request->all(), [
-                    'status' => 'required|in:Menunggu_Pembayaran,Menunggu_Konfirmasi,Diproses,Dikirim,Selesai',
+                    'status' => 'required|in:Sedang_Dikirim,Sudah_Terkirim',
                 ]);
 
                 if ($validator->fails()) {
@@ -378,9 +423,14 @@ class OrderControllerApi extends Controller
                 $order = Order::findOrFail($id);
 
                 // Update order status
-                $order->status = $request->input('status');
+                if($order->status != 'Diproses') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Order cannot be sent to delivery. Current status: ' . $order->status
+                    ], 400);
+                }
+                $order->status = 'Sedang_Dikirim';
                 $order->save();
-
                 return response()->json([
                     'success' => true,
                     'message' => 'Order status updated successfully',
@@ -410,14 +460,6 @@ class OrderControllerApi extends Controller
             try {
                 DB::beginTransaction();
                 
-                $validator = Validator::make($request->all(), [
-                    'status' => 'required|in:approve,reject',
-                ]);
-        
-                if ($validator->fails()) {
-                    return response()->json(['errors' => $validator->errors()], 422);
-                }
-        
                 $transaction = Transaction::findOrFail($id);
                 
                 if ($request->status == 'approve') {
@@ -428,7 +470,9 @@ class OrderControllerApi extends Controller
                     
                     $catalogIds = $orders->pluck('catalog_id')->toArray();
                     $catalogs = Catalog::whereIn('id', $catalogIds)->get();
-                    
+                    $customOrderIds = $orders->pluck('custom_order_id')->unique()->toArray();
+                    $customOrders = CustomOrder::whereIn('id', $customOrderIds)->get();
+
                     foreach ($orders as $order) {
                         $order->status = 'Diproses';
                         $order->save();
@@ -439,7 +483,7 @@ class OrderControllerApi extends Controller
                         $keuangan->order_id = $order->id;
                         $keuangan->user_id = $order->user_id;
                         $catalog = $catalogs->where('id', $order->catalog_id)->first();
-                        $keuangan->keterangan = 'Pembayaran Order #' . ($catalog ? $catalog->nama_katalog : 'Unknown Catalog');
+                        $keuangan->keterangan = 'Pembayaran Order ' . ($catalog ? $catalog->nama_katalog : 'Unknown Catalog');
                         $keuangan->jenis_pembayaran = $this->convertPayment($transaction->payment_method); // Default value, can be adjusted
                         $keuangan->nominal = $order->total_harga;
                         $keuangan->tanggal = now();
@@ -452,6 +496,12 @@ class OrderControllerApi extends Controller
                             $catalog->save();
                         }
                     }
+
+                    // Update status_payment of custom_orders to 'sudah_bayar'
+                    foreach ($customOrders as $customOrder) {
+                        $customOrder->status_pembayaran = 'sudah_bayar';
+                        $customOrder->save();
+                    }
                     
                 } else {
                     $transaction->status = 'failure';
@@ -460,8 +510,6 @@ class OrderControllerApi extends Controller
                     Order::where('transaction_id', $transaction->id)
                         ->update(['status' => 'Menunggu_Pembayaran']);
                 }
-                
-                $transaction->save();
                 
                 DB::commit();
         
@@ -493,42 +541,55 @@ class OrderControllerApi extends Controller
         $user = User::findOrFail(Auth::id());
         
         try {
-           // Ambil parameter status dari query string
-           $status = $request->query('status');
+            // Ambil parameter status dari query string
+            $status = $request->query('status');
 
-           // Query untuk mengambil pesanan berdasarkan user_id
-           $ordersQuery = Order::where('user_id', $user->id)
-               ->with(['catalog', 'transaction'])
-               ->orderBy('created_at', 'asc');
-   
-           // Jika parameter status diberikan, tambahkan filter status
-           if ($status) {
-               $ordersQuery->where('status', $status);
-           }
-   
-           $orders = $ordersQuery->get();
-   
-            $groupedOrders = $orders->groupBy('transaction_id')->map(function($items, $transactionId) {
-                $transaction = Transaction::findOrFail($transactionId);
+            // Query untuk mengambil semua pesanan berdasarkan user_id
+            $ordersQuery = Order::where('user_id', $user->id)
+                ->with(['catalog', 'transaction', 'customOrder'])
+                ->orderBy('created_at', 'asc');
+    
+            // Jika parameter status diberikan, tambahkan filter status
+            if ($status) {
+                $ordersQuery->where('status', $status);
+            }
+    
+            $orders = $ordersQuery->get();
+
+            // Buat variable untuk catalogs dan customOrders
+            $catalogIds = $orders->pluck('catalog_id')->unique()->toArray();
+            $customOrderIds = $orders->pluck('custom_order_id')->unique()->toArray();
+            $catalogs = Catalog::whereIn('id', $catalogIds)->get();
+            $customOrders = CustomOrder::whereIn('id', $customOrderIds)->get();
+
+            $groupedOrders = $orders->groupBy('transaction_id')->map(function($items, $transactionId) use ($catalogs, $customOrders) {
+                $transaction = Transaction::find($transactionId);
                 $firstItem = $items->first();
                 
                 return [
                     'transaction_id' => $transactionId,
-                    'order_id' => $transaction->order_id,
+                    'order_id' => $transaction ? $transaction->order_id : null,
                     'date' => $firstItem->created_at->format('Y-m-d H:i:s'),
                     'status' => $firstItem->status,
-                    'payment_method' => $transaction->payment_method,
-                    'total_amount' => $transaction->amount,
-                    'bukti_pembayaran' => $transaction->bukti_transfer,
+                    'payment_method' => $transaction ? $transaction->payment_method : null,
+                    'total_amount' => $transaction ? $transaction->amount : null,
+                    'bukti_pembayaran' => $transaction ? $transaction->bukti_transfer : null,
                     'alamat' => $firstItem->alamat,
-                    'items' => $items->map(function($item) {
+                    'items' => $items->map(function($item) use ($catalogs, $customOrders) {
+                        $catalog = $catalogs->where('id', $item->catalog_id)->first();
+                        $customOrder = $customOrders->where('id', $item->custom_order_id)->first();
+                        
+                        $productName = $catalog 
+                            ? $catalog->nama_katalog 
+                            : ($customOrder ? $customOrder->jenis_baju : 'Unknown Product');
+                        
                         return [
                             'id' => $item->id,
-                            'product_name' => $item->catalog->nama_katalog,
-                            'price' => $item->catalog->price,
+                            'product_name' => $customOrder ? $customOrder->jenis_baju : $productName,
+                            'price' => $customOrder ? $customOrder->total_harga : ($catalog ? $catalog->price : 0),
                             'quantity' => $item->jumlah,
                             'subtotal' => $item->total_harga,
-                            'image' => $item->catalog->gambar,
+                            'image' => $catalog ? $catalog->gambar : ($customOrder ? $customOrder->gambar_referensi : null),
                         ];
                     }),
                     'delivery_proof' => DeliveryProof::where('order_id', $items->first()->id)->first(),
@@ -636,7 +697,7 @@ class OrderControllerApi extends Controller
         if ($user->isOwner() || $user->isAdmin()) {
             try {
                 $orders = Order::whereIn('status', ['Diproses', 'Dikirim', 'Selesai'])
-                    ->with(['catalog', 'transaction', 'user', 'deliveryProof'])
+                    ->with(['catalog', 'transaction', 'user', 'deliveryProof', 'customOrder'])
                     ->orderBy('created_at', 'asc')
                     ->get()
                     ->map(function($order) {
@@ -648,7 +709,12 @@ class OrderControllerApi extends Controller
                                 'name' => $order->user->name,
                                 'email' => $order->user->email
                             ],
-                            'product' => [
+                            'product' => $order->customOrder ? [
+                                'id' => $order->customOrder->id,
+                                'name' => $order->customOrder->jenis_baju,
+                                'price' => $order->customOrder->total_harga,
+                                'image' => $order->customOrder->gambar_referensi
+                            ] : [
                                 'id' => $order->catalog->id,
                                 'name' => $order->catalog->nama_katalog,
                                 'price' => $order->catalog->price,
@@ -710,7 +776,7 @@ class OrderControllerApi extends Controller
                 $order = Order::findOrFail($id);
                 
                 // Check if order is in the correct status to be completed
-                if ($order->status != 'Dikirim') {
+                if ($order->status != 'Sudah_Terkirim') {
                     return response()->json([
                         'success' => false,
                         'message' => 'Order cannot be completed. Current status: ' . $order->status
@@ -721,13 +787,12 @@ class OrderControllerApi extends Controller
                 $order->status = 'Selesai';
                 $order->save();
                 
-                // Update catalog stock if type is Pembelian
-                if ($order->type === 'Pembelian') {
+                // Update catalog stock if type is Pembelian and catalog exists
+                if ($order->type === 'Pembelian' && $order->catalog_id) {
                     $catalog = Catalog::findOrFail($order->catalog_id);
                     $catalog->stok -= $order->jumlah;
                     $catalog->save();
                 }
-                
                 return response()->json([
                     'success' => true,
                     'message' => 'Order has been completed successfully',

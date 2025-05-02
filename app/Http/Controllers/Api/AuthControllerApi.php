@@ -176,7 +176,7 @@ class AuthControllerApi extends Controller
             Auth::login($user);
             $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
             $token = $user->createToken('auth_token')->plainTextToken;
-            return redirect("{$frontendUrl}/Akun?token={$token}");
+            return redirect("{$frontendUrl}/akun?token={$token}");
            
         } catch (\Exception $e) {
             Log::error('Google Auth Error: ' . $e->getMessage(), [

@@ -17,9 +17,11 @@ class Order extends Model
     protected $fillable = [
         'user_id',
         'catalog_id',
+        'custom_order_id',
+        'transaction_id',
         'jumlah',
         'total_harga',
-        'alamat',
+        // 'alamat',
         'type',
         'status',
         'bukti_pembayaran',
@@ -45,4 +47,8 @@ class Order extends Model
         return $this->hasOne(Transaction::class);
     }
 
+    public function customOrder()
+    {
+        return $this->belongsTo(CustomOrder::class, 'custom_orforeignKey: der_id');
+    }
 }

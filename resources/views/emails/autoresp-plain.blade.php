@@ -10,4 +10,5 @@ Jika ada hal mendesak, jangan ragu untuk langsung menghubungi kami di 📞 +62 8
 Terima kasih atas kesabaran dan kepercayaan Anda! 🙌
 
 Salam hangat,
-✨ Agridation Team ✨
+✨ Production Team ✨
+
