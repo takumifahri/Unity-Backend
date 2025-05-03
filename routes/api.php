@@ -120,6 +120,9 @@ Route::prefix('/order')->group(function () {
             Route::post('/accept/propose', [CustomOrderControllerApi::class, 'acceptPropose']);
             Route::post('/finalize/{id}', [CustomOrderControllerApi::class, 'updateStatus']);
         });
+
+        Route::post('/addReviews/{id}', [OrderControllerApi::class, 'Reviews']);
+        Route::get('/reviews', [OrderControllerApi::class, 'getReviews']);
     });
 });
 

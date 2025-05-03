@@ -171,6 +171,43 @@ class CustomOrderControllerApi extends Controller
             ], 500);
         }
     }
+
+    public function autoRejectProposals()
+    {
+        try {
+            // Cari custom orders dengan status "pending" yang dibuat lebih dari 2 hari yang lalu
+            $twoDaysAgo = now()->subDays(2);
+            $pendingOrders = CustomOrder::where('status', 'pending')
+                ->where('created_at', '<=', $twoDaysAgo)
+                ->get();
+
+            foreach ($pendingOrders as $order) {
+                // Ubah status menjadi "ditolak"
+                $order->status = 'ditolak';
+                $order->save();
+
+                // Log aktivitas penolakan otomatis
+                \Illuminate\Support\Facades\Log::info('Custom order automatically rejected', [
+                    'custom_order_id' => $order->id,
+                    'created_at' => $order->created_at,
+                    'rejected_at' => now(),
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pending proposals older than 2 days have been rejected.',
+                'data' => $pendingOrders,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error rejecting proposals',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function acceptPropose(Request $request)
     {
          // Authorize the action
@@ -180,7 +217,7 @@ class CustomOrderControllerApi extends Controller
                  'status' => false,
                  'message' => 'Unauthorized access'
              ], 403);
-         }
+        }
         try {
             // Validate input
             $validatedData = $request->validate([
@@ -540,4 +577,5 @@ class CustomOrderControllerApi extends Controller
             }
         }
     }
+
 }

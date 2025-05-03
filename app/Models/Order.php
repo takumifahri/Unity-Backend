@@ -25,6 +25,9 @@ class Order extends Model
         'type',
         'status',
         'bukti_pembayaran',
+        'isReviewed',
+        'ulasan',
+        'ratings',
     ];
 
     public function user()

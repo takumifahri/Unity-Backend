@@ -918,4 +918,89 @@ class OrderControllerApi extends Controller
             ], 500);
         }
     }
+
+    
+    public function Reviews(Request $request, $id)
+    {
+        $user = User::findOrFail(Auth::id());
+        if($user){
+            try {
+                $order = Order::findOrFail($id);
+    
+                // Ensure the order belongs to the authenticated user
+                if ($order->user_id !== Auth::id()) {
+                    return response()->json([
+                        'status' => false,
+                        'message' => 'Unauthorized'
+                    ], 403);
+                }
+    
+                // Ensure the order is eligible for review
+                if ($order->status !== 'Selesai' || $order->isReviewed) {
+                    return response()->json([
+                        'status' => false,
+                        'message' => 'Order cannot be reviewed'
+                    ], 400);
+                }
+    
+                $validatedData = $request->validate([
+                    'ratings' => 'required|integer|min:1|max:5',
+                    'ulasan' => 'required|string|max:255'
+                ]);
+    
+                // Update the order with the review
+                $order->update([
+                    'ratings' => $validatedData['ratings'],
+                    'ulasan' => $validatedData['ulasan'],
+                    'isReviewed' => true
+                ]);
+    
+                return response()->json([
+                    'status' => true,
+                    'message' => 'Review added successfully',
+                    'data' => $order
+                ], 200);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'sendToDelivery' => false,
+                    'message' => 'Failed to add review',
+                    'error' => $e->getMessage()
+                ], 500);
+            }
+        }else{
+            return response()->json([
+                'status' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+    }
+
+    public function getReviews(Request $request)
+    {
+        try {
+            $orders = Order::where('isReviewed', true)
+                ->with(['catalog', 'transaction', 'customOrder'])
+                ->orderBy('created_at', 'desc')
+                ->get();
+            if($orders->isEmpty()) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'No reviews found'
+                ], 404);
+            } else {
+                return response()->json([
+                    'status' => true,
+                    'data' => $orders
+                ], 200);
+            }
+  
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to retrieve reviews',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+        
+    }
 }
