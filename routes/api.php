@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\MasterBahanControllerApi;
 use App\Http\Controllers\Api\MasterJenisKatalogControllerApi;
 use App\Http\Controllers\Api\OrderControllerApi;
 use App\Http\Controllers\Api\ProfileControllerApi;
+use App\Http\Controllers\Api\ReviewControllerApi;
 use App\Http\Controllers\Api\UserControllerApi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;   
@@ -107,7 +108,7 @@ Route::prefix('/order')->group(function () {
         Route::post('/checkout', [OrderControllerApi::class, 'checkout']);
         Route::post('/checkout/buktibayar', [OrderControllerApi::class, 'uploadPaymentProof']);
         Route::post('/admin/verif/{id}', [OrderControllerApi::class, 'AdminVerifPayment']);
-        Route::get('/history_cart', [OrderControllerApi::class, 'getMyOrders']);
+        Route::get('/history', [OrderControllerApi::class, 'getMyOrders']);
 
         Route::post('/sendToDelivery/{id}', [OrderControllerApi::class, 'sendToDelivery']);
         Route::get('/deliveryStatus', [OrderControllerApi::class, 'getOrdersWithDeliveryStatus']);
@@ -120,9 +121,21 @@ Route::prefix('/order')->group(function () {
             Route::post('/accept/propose', [CustomOrderControllerApi::class, 'acceptPropose']);
             Route::post('/finalize/{id}', [CustomOrderControllerApi::class, 'updateStatus']);
         });
+
+       
+        // Route::post('/addReviews/{id}', [OrderControllerApi::class, 'Reviews']);
+        // Route::get('/reviews', [OrderControllerApi::class, 'getReviews']);
     });
 });
+Route::prefix('/reviews')->group(function () {
+    Route::get('/', [ReviewControllerApi::class, 'getAllReviews']);
+    Route::get('/detail/{id}', [ReviewControllerApi::class, 'detailReviews']);
+    Route::middleware(['auth:sanctum'])->group(function () {
+        Route::post('/addReviews/{id}', [ReviewControllerApi::class, 'addReviews']);
+        Route::post('/reply/{id}', [ReviewControllerApi::class, 'replyReviews']);   
+    });
 
+});
 Route::prefix('/cashier')->group(function () {
     // Add your cashier routes here
     Route::middleware(['auth:sanctum'])->group(function () {

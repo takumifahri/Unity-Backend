@@ -27,9 +27,11 @@ return new class extends Migration
             $table->enum('type', ['Pembelian', 'Pemesanan']);
             $table->enum('status', ['Menunggu_Pembayaran', 'Menunggu_Konfirmasi', 'Diproses', 'Sedang_Dikirim', 'Sudah_Terkirim', 'Selesai']);
             $table->string('bukti_pembayaran')->nullable();
+            $table->boolean('isReviewed')->default(false);
+            $table->foreignId('ulasan_id')->nullable()->constrained('reviews_products')->onDelete('cascade');
+            
             $table->timestamps();
             $table->softDeletes();
-
         });
     }
 

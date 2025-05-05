@@ -25,6 +25,8 @@ class Order extends Model
         'type',
         'status',
         'bukti_pembayaran',
+        'isReviewed',
+        'ulasan_id',
     ];
 
     public function user()
@@ -50,5 +52,10 @@ class Order extends Model
     public function customOrder()
     {
         return $this->belongsTo(CustomOrder::class, 'custom_orforeignKey: der_id');
+    }
+
+    public function reviews()
+    {
+        return $this->hasOne(ReviewsProduct::class, 'order_id');
     }
 }

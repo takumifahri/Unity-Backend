@@ -544,11 +544,11 @@ class OrderControllerApi extends Controller
             // Ambil parameter status dari query string
             $status = $request->query('status');
 
-            // Query untuk mengambil semua pesanan berdasarkan user_id
+            // Query untuk mengambil semua pesanan berdasarkan user_id  
             $ordersQuery = Order::where('user_id', $user->id)
                 ->with(['catalog', 'transaction', 'customOrder'])
                 ->orderBy('created_at', 'asc');
-    
+            
             // Jika parameter status diberikan, tambahkan filter status
             if ($status) {
                 $ordersQuery->where('status', $status);
@@ -918,4 +918,7 @@ class OrderControllerApi extends Controller
             ], 500);
         }
     }
+
+    
+  
 }
