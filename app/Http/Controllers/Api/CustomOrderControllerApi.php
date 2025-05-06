@@ -34,7 +34,8 @@ class CustomOrderControllerApi extends Controller
         $user = User::findOrFail(Auth::id());
         if($user->isAdmin() || $user->isOwner()){
             try{
-                $customOrders = CustomOrder::with('masterBahan')->get();
+                $customOrders = CustomOrder::with('masterBahan', 'approved_by')->get();
+                // $order = Order::with()
                 if ($customOrders->isEmpty()) {
                     return response()->json([
                         'status' => false,
@@ -44,7 +45,10 @@ class CustomOrderControllerApi extends Controller
                 return response()->json([
                     'status' => true,
                     'message' => 'Berhasil mendapatkan data custom order',
-                    'data' => $customOrders
+                    'data' => [
+                        'custom_orders' => $customOrders,
+                        
+                    ]
                 ], 200);
             }catch(\Exception $e){
                 return response()->json([
