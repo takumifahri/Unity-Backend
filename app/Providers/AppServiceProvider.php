@@ -5,8 +5,7 @@ namespace App\Providers;
 use App\Models\Order;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\ServiceProvider;
-use App\Observers\api\OrderObserver;
-
+use App\Observers\Api\V1\OrderObserver;
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -36,7 +35,7 @@ class AppServiceProvider extends ServiceProvider
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ]);
             
-        Order::observe(OrderObserver::class);
+        Order::observe(\App\Observers\Api\OrderObserver::class);
     }
     
 }
