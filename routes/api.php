@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\CatalogControllerApi;
 use App\Http\Controllers\Api\ContactUsControllerApi;
 use App\Http\Controllers\Api\CustomOrderControllerApi;
 use App\Http\Controllers\Api\HistoryControllerApi;
+use App\Http\Controllers\Api\KeuanganControllerApi;
 use App\Http\Controllers\Api\MasterBahanControllerApi;
 use App\Http\Controllers\Api\MasterJenisKatalogControllerApi;
 use App\Http\Controllers\Api\OrderControllerApi;
@@ -25,6 +26,8 @@ Route::get('/master_jenis/{id}', [MasterJenisKatalogControllerApi::class, 'show'
 
 Route::post('/auth/register', [AuthControllerApi::class, 'register']);
 Route::post('/auth/login', [AuthControllerApi::class, 'login']);
+
+Route::post('/track-visitor', [UserControllerApi::class, 'visitorStore']);
 
 // Profile route 
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -52,6 +55,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/show/{id}', [UserControllerApi::class, 'show']);
         Route::post('/update/{id}', [UserControllerApi::class, 'update']);
         Route::delete('/delete/{id}', [UserControllerApi::class, 'destroy']);
+
+        Route::get('/count', [UserControllerApi::class, 'countUser']);
+        Route::get('/count/visitor', [UserControllerApi::class, 'VisitorCount']);
     });
 
     Route::group(['prefix'=>'profile'], function(){
@@ -110,6 +116,10 @@ Route::prefix('/order')->group(function () {
         Route::post('/admin/verif/{id}', [OrderControllerApi::class, 'AdminVerifPayment']);
         Route::get('/history', [OrderControllerApi::class, 'getMyOrders']);
 
+        Route::get('/monthly', [OrderControllerApi::class, 'getMonthly']);
+
+        Route::get('/tracking', [OrderControllerApi::class, 'getOrderHaventDone']);
+
         Route::post('/sendToDelivery/{id}', [OrderControllerApi::class, 'sendToDelivery']);
         Route::get('/deliveryStatus', [OrderControllerApi::class, 'getOrdersWithDeliveryStatus']);
         Route::post('/recieved/{id}', [OrderControllerApi::class, 'shipOrder']);
@@ -152,5 +162,15 @@ Route::prefix('/cashier')->group(function () {
             Route::delete('/delete/{id}', [CartControllerApi::class, 'destroy']);
         });
       
+    });
+});
+
+Route::prefix('/keuangan')->group(function() {
+    Route::middleware(['auth:sanctum'])->group(function () {
+        Route::get('/', [KeuanganControllerApi::class, 'index']);
+        Route::get('/ProfitLossMonthly', [KeuanganControllerApi::class, 'trackMonthlyIncomeProfitLoss']);
+        Route::get('/revenue', [KeuanganControllerApi::class, 'dailyRevenue']);
+        Route::get('/routine', [KeuanganControllerApi::class, 'activitySummary']);
+        Route::get('/admin', [KeuanganControllerApi::class, 'adminActivity']);
     });
 });

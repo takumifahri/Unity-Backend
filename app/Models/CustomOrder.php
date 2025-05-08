@@ -39,7 +39,7 @@ class CustomOrder extends Model
     
     public function approvedByUser()
     {
-        return $this->belongsTo(User::class, 'approved_by');
+        return $this->belongsTo(User::class, 'approved_by', 'id');
     }
 
 }

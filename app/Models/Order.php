@@ -51,8 +51,14 @@ class Order extends Model
 
     public function customOrder()
     {
-        return $this->belongsTo(CustomOrder::class, 'custom_orforeignKey: der_id');
+        return $this->belongsTo(CustomOrder::class, 'custom_order_id');
     }
+
+    public function approvedByUser()
+    {
+        return $this->belongsTo(User::class, 'approved_by', 'id');
+    }
+
 
     public function reviews()
     {

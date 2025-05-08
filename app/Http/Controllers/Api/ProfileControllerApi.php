@@ -12,23 +12,7 @@ use Illuminate\Support\Facades\Password;
 
 class ProfileControllerApi extends Controller
 {
-    // private function convertToWhatsapp($phone)
-    // {
-    //     // Menghapus karakter non-numerik dari nomor telepon
-    //     $phone = preg_replace('/\D/', '', $phone);
-        
-    //     // Mengubah nomor telepon yang diawali dengan 08 menjadi format dengan kode negara Indonesia (62)
-    //     if (substr($phone, 0, 2) == '08') {
-    //         $phone = '62' . substr($phone, 1);
-    //     }
-    //     // Menghapus tanda + jika nomor telepon diawali dengan +62
-    //     elseif (substr($phone, 0, 3) == '620') {
-    //         $phone = '62' . substr($phone, 3);
-    //     }
-        
-    //     return 'https://wa.me/62'.$phone;
-    // }
-
+    
     public function updateProfilePhoto(Request $request)
     {
         $user = User::findOrFail(Auth::id());

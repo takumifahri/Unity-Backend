@@ -24,7 +24,7 @@ class CustomOrderControllerApi extends Controller
     {
         $payment_details = [
             'BCA' => 'Bank BCA: 2670342134 a.n. Andi Setiawan',
-            'E-Wallet_Dana' => 'DANA: 0857-4851-3790 a.n. Nama Toko',
+            'E-Wallet_Dana' => 'DANA: 0857-4851-3790 a.n. Andi Setiawan',
         ];
 
         return $payment_details[$payment_method] ?? 'Bank BCA: 2670342134 a.n. Andi Setiawan';
@@ -34,7 +34,7 @@ class CustomOrderControllerApi extends Controller
         $user = User::findOrFail(Auth::id());
         if($user->isAdmin() || $user->isOwner()){
             try{
-                $customOrders = CustomOrder::with('masterBahan', 'approved_by')->get();
+                $customOrders = CustomOrder::with('masterBahan', 'approvedByUser')->get();
                 // $order = Order::with()
                 if ($customOrders->isEmpty()) {
                     return response()->json([

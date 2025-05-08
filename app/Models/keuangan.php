@@ -15,12 +15,29 @@ class keuangan extends Model
     protected $table = 'keuangans';
     protected $fillable = [
         'user_id',
-        'nominal',
         'catalog_id',
         'order_id',
         'keterangan',
         'jenis_pembayaran',
+        'nominal',
         'tanggal',
         'jenis_keuangan',
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function catalog()
+    {
+        return $this->belongsTo(Catalog::class);
+    }
+
+    public function order()
+    {
+        return $this->belongsTo(Order::class);
+    }
+
+    
 }

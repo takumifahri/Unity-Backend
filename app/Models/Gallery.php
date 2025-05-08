@@ -18,4 +18,8 @@ class Gallery extends Model
         'ukuran',
     ];
 
+    public function reponsible_person()
+    {
+        return $this->belongsTo(User::class, 'added_by');
+    }
 }

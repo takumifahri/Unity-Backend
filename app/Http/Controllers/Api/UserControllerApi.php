@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Visitors;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -32,6 +33,23 @@ class UserControllerApi extends Controller
         }
     }
 
+    public function countUser(){
+        // Untuk manajemen USer
+        $user = User::findOrFail(Auth::id());
+        if ($user->isAdmin() || $user->isOwner()) {
+            $data = User::count();
+            return response()->json([
+                'message' => 'Data retrieved successfully',
+                'status' => 'success',
+                'data' => $data
+            ]);
+        } else {
+            return response()->json([
+                'message' => 'Unauthorized. Only admin can access this feature',
+                'status' => 'error'
+            ], 403);
+        }
+    }
     /**
      * Store a newly created resource in storage.
      */
@@ -205,5 +223,53 @@ class UserControllerApi extends Controller
                 'status' => 'error'
             ], 403);
         }
+    }
+
+    public function visitorStore(Request $request){
+        try{
+            Visitors::create([
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->header('User-Agent'),
+                'url_visited' => $request->input('url_visited'),
+            ]);
+
+            return response()->json(['message' => 'Visitor tracked']);
+        }catch(\Exception $e){
+            return response()->json([
+                'message' => $e->getMessage(),
+                'status' => 'error'
+            ]);
+        }
+    }
+
+    public function VisitorCount()
+    {
+        $user = User::findOrFail(Auth::id());
+            if ($user->isAdmin() || $user->isOwner()) {
+                $totalVisitors = Visitors::count();
+                $currentMonthVisitors = Visitors::whereMonth('created_at', now()->month)
+                                ->whereYear('created_at', now()->year)
+                                ->count();
+                $lastMonthVisitors = Visitors::whereMonth('created_at', now()->subMonth()->month)
+                            ->whereYear('created_at', now()->subMonth()->year)
+                            ->count();
+
+                return response()->json([
+                'message' => 'Data retrieved successfully',
+                'status' => 'success',
+                'data' => [
+                    'total_visitors' => $totalVisitors,
+                    'current_month_visitors' => $currentMonthVisitors,
+                    'last_month_visitors' => $lastMonthVisitors
+                ]
+                ]);
+            } else {
+                return response()->json([
+                'message' => 'Unauthorized. Only admin can access this feature',
+                'status' => 'error'
+                ], 403);
+            }
+       
+       
     }
 }

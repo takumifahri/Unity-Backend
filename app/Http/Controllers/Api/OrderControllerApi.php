@@ -27,12 +27,105 @@ class OrderControllerApi extends Controller
         return $payment_details[$payment_method] ?? 'Bank BCA: 2670342134 a.n. Andi Setiawan';
     }
 
+    public function getOrderHaventDone(Request $request)
+    {
+        $user = User::findOrFail(Auth::id());
+        if ($user->isAdmin() || $user->isOwner()) {
+            try {
+                $orders = Order::where('status', '!=', 'Selesai')
+                    ->where('user_id', $user->id)
+                    ->with(['catalog', 'transaction', 'customOrder', 'deliveryProof'])
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+                $customOrder = CustomOrder::where('status', '!=', 'selesai')
+                    ->where('user_id', $user->id)
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'orders' => $orders,
+                        'custom_orders' => $customOrder
+                    ]
+                ]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error retrieving orders',
+                    'error' => $e->getMessage()
+                ], 500);
+            }
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+    }
+
+    public function getMonthly(Request $request)
+    {
+        $user = User::findOrFail(Auth::id());
+        if ($user->isAdmin() || $user->isOwner()) {
+            try {
+                // Get current month and last month
+                $currentMonth = now()->format('Y-m');
+                $lastMonth = now()->subMonth()->format('Y-m');
+
+                // Calculate revenue and order count for the current month
+                $currentMonthData = Order::where('status', 'Selesai')
+                    ->whereYear('created_at', now()->year)
+                    ->whereMonth('created_at', now()->month)
+                    ->selectRaw('SUM(total_harga) as revenue, COUNT(*) as order_count')
+                    ->first();
+
+                // Calculate revenue and order count for the last month
+                $lastMonthData = Order::where('status', 'Selesai')
+                    ->whereYear('created_at', now()->subMonth()->year)
+                    ->whereMonth('created_at', now()->subMonth()->month)
+                    ->selectRaw('SUM(total_harga) as revenue, COUNT(*) as order_count')
+                    ->first();
+
+                // Calculate the difference and percentage change for revenue
+                $difference = $currentMonthData->revenue - $lastMonthData->revenue;
+                $percentageChange = $lastMonthData->revenue > 0 
+                    ? ($difference / $lastMonthData->revenue) * 100 
+                    : ($currentMonthData->revenue > 0 ? 100 : 0);
+
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'current_month' => $currentMonth,
+                        'last_month' => $lastMonth,
+                        'current_month_revenue' => (int) $currentMonthData->revenue,
+                        'current_month_order_count' => $currentMonthData->order_count,
+                        'last_month_revenue' => $lastMonthData->revenue,
+                        'last_month_order_count' => $lastMonthData->order_count,
+                        'difference' => $difference,
+                        'percentage_change' => round($percentageChange, 2)
+                    ]
+                ]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error retrieving monthly data',
+                    'error' => $e->getMessage()
+                ], 500);
+            }
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+    }
+
     public function index() {
         $user = User::findOrFail(Auth::id());
         if($user->isUser()) {
            try{
                 $orders = Order::where('user_id', $user->id)
-                    ->with(['catalog', 'transaction', 'customOrder'])
+                    ->with(['catalog', 'transaction', 'customOrder', 'customOrder.approvedByUser'])
                     ->orderBy('created_at', 'asc')
                     ->get();
 
@@ -49,7 +142,7 @@ class OrderControllerApi extends Controller
             }
         } else if($user->isAdmin() || $user->isOwner()) {
             try {
-                $orders = Order::with(['catalog', 'transaction', 'customOrder'])
+                $orders = Order::with(['catalog', 'transaction', 'customOrder', 'customOrder.approvedByUser'])
                     ->orderBy('created_at', 'asc')
                     ->get();
 
@@ -421,7 +514,7 @@ class OrderControllerApi extends Controller
                 }
 
                 $order = Order::findOrFail($id);
-
+                $customOrder = CustomOrder::findOrFail($order->custom_order_id);
                 // Update order status
                 if($order->status != 'Diproses') {
                     return response()->json([
@@ -429,7 +522,8 @@ class OrderControllerApi extends Controller
                         'message' => 'Order cannot be sent to delivery. Current status: ' . $order->status
                     ], 400);
                 }
-                $order->status = 'Sedang_Dikirim';
+                $order->status = 'Selesai';
+                $customOrder->status = 'Sedang_Dikirim';
                 $order->save();
                 return response()->json([
                     'success' => true,
@@ -483,7 +577,8 @@ class OrderControllerApi extends Controller
                         $keuangan->order_id = $order->id;
                         $keuangan->user_id = $order->user_id;
                         $catalog = $catalogs->where('id', $order->catalog_id)->first();
-                        $keuangan->keterangan = 'Pembayaran Order ' . ($catalog ? $catalog->nama_katalog : 'Unknown Catalog');
+                        $customOrder = $customOrders->where('id', $order->custom_order_id)->first();
+                        $keuangan->keterangan = 'Pembayaran ' . ($catalog ? "Order {$catalog->nama_katalog}" : ($customOrder ? "Custom Order {$customOrder->jenis_baju}" : 'Unknown Catalog'));
                         $keuangan->jenis_pembayaran = $this->convertPayment($transaction->payment_method); // Default value, can be adjusted
                         $keuangan->nominal = $order->total_harga;
                         $keuangan->tanggal = now();

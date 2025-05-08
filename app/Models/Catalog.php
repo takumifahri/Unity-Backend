@@ -20,8 +20,6 @@ class Catalog extends Model
         'details',
         'stok',
         'bahan',
-        // 'tipe_bahan_id',
-        // 'jenis_katalog_id',
         'price',
         'feature',
         'sold',
