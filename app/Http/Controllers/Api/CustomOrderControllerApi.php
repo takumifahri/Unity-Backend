@@ -20,6 +20,36 @@ use Illuminate\Support\Facades\Log;
 class CustomOrderControllerApi extends Controller
 {
     //
+    public function show(Request $request, $id)
+    {
+        $user = User::findOrFail(Auth::id());
+        if($user->isAdmin() || $user->isOwner() || $user->isUser()){
+            try {
+                $customOrder = CustomOrder::findOrFail($id)
+                    ->with('masterBahan', 'approvedByUser')
+                    ->where('id', $id)
+                    ->where('user_id', $user->id)
+                    ->first();
+                return response()->json([
+                    'status' => true,
+                    'message' => 'Berhasil mendapatkan data custom order',
+                    'data' => $customOrder
+                ], 200);
+            } catch (ModelNotFoundException $e) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Custom order tidak ditemukan'
+                ], 404);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Gagal mendapatkan data custom order',
+                    'error' => $e->getMessage()
+                ], 500);
+            }
+        }
+      
+    }
     private function getPaymentDetails($payment_method)
     {
         $payment_details = [
@@ -153,7 +183,7 @@ class CustomOrderControllerApi extends Controller
             ]);
             
             return response()->json([
-                'status' => true,
+                'status' => 'success',
                 'message' => 'Custom order berhasil dibuat',
                 'data' => $customOrder
             ], 201);

@@ -27,4 +27,17 @@ class transaction extends Model
         'expired_at' => 'datetime',
     ];
 
+    public function order()
+    {
+        return $this->belongsTo(Order::class);
+    }
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+    public function deliveryProof()
+    {
+        return $this->hasOne(DeliveryProof::class);
+    }
+    
 }

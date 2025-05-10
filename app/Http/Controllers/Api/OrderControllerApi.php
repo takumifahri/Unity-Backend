@@ -27,10 +27,47 @@ class OrderControllerApi extends Controller
         return $payment_details[$payment_method] ?? 'Bank BCA: 2670342134 a.n. Andi Setiawan';
     }
 
+    public function getAllCustonAndOrder(Request $request){
+        $user = User::findOrFail(Auth::id());
+        if($user->isAdmin() || $user->isOwner()){
+            try {
+                $orders = Order::with(['catalog', 'Transactions', 'customOrder', 'deliveryProof'])
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+                $customOrder = CustomOrder::with(['approvedByUser'])
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+                $transaction = transaction::with(['order', 'order.catalog', 'order.customOrder'])
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'orders' => $orders,
+                        'custom_orders' => $customOrder,
+                        'transactions' => $transaction
+                    ]
+                ]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error retrieving orders',
+                    'error' => $e->getMessage()
+                ], 500);
+            }
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+    }
+    
     public function getOrderHaventDone(Request $request)
     {
         $user = User::findOrFail(Auth::id());
-        if ($user->isAdmin() || $user->isOwner()) {
+        if ($user){
             try {
                 $orders = Order::where('status', '!=', 'Selesai')
                     ->where('user_id', $user->id)
@@ -124,8 +161,7 @@ class OrderControllerApi extends Controller
         $user = User::findOrFail(Auth::id());
         if($user->isUser()) {
            try{
-                $orders = Order::where('user_id', $user->id)
-                    ->with(['catalog', 'transaction', 'customOrder', 'customOrder.approvedByUser'])
+                $orders = Order::with(['catalog', 'transaction', 'customOrder', 'customOrder.approvedByUser'])
                     ->orderBy('created_at', 'asc')
                     ->get();
 

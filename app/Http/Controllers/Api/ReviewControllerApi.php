@@ -163,8 +163,6 @@ class ReviewControllerApi extends Controller
         }
     }
 
-
-
     public function replyReviews(Request $request, $id)
     {
         $user = User::findOrFail(Auth::id());

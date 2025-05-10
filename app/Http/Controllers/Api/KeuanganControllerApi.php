@@ -18,9 +18,8 @@ class KeuanganControllerApi extends Controller
      */
     public function index()
     {
-        //
         $user = User::findOrFail(Auth::id());
-        if($user->isOwner()){
+        if ($user->isOwner()) {
             try {
                 $keuangan = keuangan::with(['user', 'order.customOrder', 'order', 'order.catalog']);
                 $customOrder = Order::with(['customOrder'])->get();
@@ -36,9 +35,9 @@ class KeuanganControllerApi extends Controller
                 return response()->json([
                     'status' => true,
                     'message' => 'Berhasil mendapatkan data',
-                    'data' => $keuangan->paginate(10)
+                    'data' => $keuangan->get()
                 ], 200);
-            }catch(\Exception $e){
+            } catch (\Exception $e) {
                 return response()->json([
                     'status' => false,
                     'message' => 'Gagal mendapatkan data',
@@ -46,6 +45,12 @@ class KeuanganControllerApi extends Controller
                 ], 500);
             }
         }
+
+        return response()->json([
+            'status' => false,
+            'message' => 'Unauthorized',
+            'data' => null
+        ], 403);
     }
 
 

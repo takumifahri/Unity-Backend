@@ -62,7 +62,6 @@ class ContactUsControllerApi extends Controller
                 'name' => 'required',
                 'email' => 'required|email',
                 'no_hp' => 'required',
-                'subject' => 'required',
                 'message' => 'required',
                 'attachment' => 'nullable|file|max:10240', // Max 10MB
             ],

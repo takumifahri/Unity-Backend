@@ -135,7 +135,6 @@ class AuthControllerApi extends Controller
                 throw new \Exception('Invalid OAuth response');
             }
 
-
             // In your controller, before using Socialite
             \Illuminate\Support\Facades\Config::set('services.google.guzzle', [
                 'verify' => false
@@ -143,17 +142,24 @@ class AuthControllerApi extends Controller
 
             // Get authenticated Google user
             $googleUser = Socialite::driver('google')->user();
-                // ->stateless() // Important for API usage
-                
+
             // Validate required fields
             if (empty($googleUser->email)) {
                 throw new \Exception('Email not provided by Google');
             }
 
-            // Find or create user
-            $user = User::updateOrCreate(
-                ['email' => $googleUser->email],
-                [
+            // Check if user already exists
+            $user = User::where('email', $googleUser->email)->first();
+
+            if ($user) {
+                // If user exists, update only google_id and email_verified_at
+                $user->update([
+                    'google_id' => $googleUser->id,
+                    'email_verified_at' => now(),
+                ]);
+            } else {
+                // If user does not exist, create a new one
+                $user = User::create([
                     'name' => $googleUser->name ?? 'No Name Provided',
                     'google_id' => $googleUser->id,
                     'email' => $googleUser->email,
@@ -164,11 +170,9 @@ class AuthControllerApi extends Controller
                     'isAgree' => true, // Default value for isAgree
                     'phone' => null, // Default value for phone
                     'profile_photo' => $googleUser->avatar ?? null, // Use Google avatar if available
-                ]
-            );
+                ]);
 
-            // Trigger registered event if new user
-            if ($user->wasRecentlyCreated) {
+                // Trigger registered event if new user
                 event(new Registered($user));
             }
 
@@ -177,13 +181,12 @@ class AuthControllerApi extends Controller
             $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
             $token = $user->createToken('auth_token')->plainTextToken;
             return redirect("{$frontendUrl}/akun?token={$token}");
-           
         } catch (\Exception $e) {
             Log::error('Google Auth Error: ' . $e->getMessage(), [
                 'exception' => $e,
                 'request' => $request->all()
             ]);
-            
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Authentication failed. Please try again.',

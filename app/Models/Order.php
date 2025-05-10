@@ -59,7 +59,10 @@ class Order extends Model
         return $this->belongsTo(User::class, 'approved_by', 'id');
     }
 
-
+    public function Transactions()
+    {
+        return $this->hasOne(Transaction::class, 'order_id');
+    }
     public function reviews()
     {
         return $this->hasOne(ReviewsProduct::class, 'order_id');

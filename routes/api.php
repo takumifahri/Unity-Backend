@@ -108,6 +108,7 @@ Route::prefix('/order')->group(function () {
     // Add your order routes here
     Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/', [OrderControllerApi::class, 'index']);
+        Route::get('/show/{id}', [OrderControllerApi::class, '  ']);
         Route::get('/itemlist', [OrderControllerApi::class, 'CartIndex']);
         Route::post('/additem', [OrderControllerApi::class, 'addCart']);
         Route::delete('/removeItem', [OrderControllerApi::class, 'removeItems']);
@@ -119,7 +120,7 @@ Route::prefix('/order')->group(function () {
         Route::get('/monthly', [OrderControllerApi::class, 'getMonthly']);
 
         Route::get('/tracking', [OrderControllerApi::class, 'getOrderHaventDone']);
-
+        Route::get('/all', [OrderControllerApi::class, 'getAllCustonAndOrder']);
         Route::post('/sendToDelivery/{id}', [OrderControllerApi::class, 'sendToDelivery']);
         Route::get('/deliveryStatus', [OrderControllerApi::class, 'getOrdersWithDeliveryStatus']);
         Route::post('/recieved/{id}', [OrderControllerApi::class, 'shipOrder']);
@@ -127,6 +128,7 @@ Route::prefix('/order')->group(function () {
         
         Route::prefix('/custom')->group(function(){
             Route::get('/', [CustomOrderControllerApi::class, 'index']);
+            Route::get('/show/{id}', [CustomOrderControllerApi::class, 'show']);
             Route::post('/propose', [CustomOrderControllerApi::class, 'propose']);
             Route::post('/accept/propose', [CustomOrderControllerApi::class, 'acceptPropose']);
             Route::post('/finalize/{id}', [CustomOrderControllerApi::class, 'updateStatus']);
