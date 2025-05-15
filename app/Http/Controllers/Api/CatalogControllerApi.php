@@ -40,6 +40,35 @@ class CatalogControllerApi extends Controller
         ]);
     }
 
+    public function getBestSeller(Request $request){
+        try {
+            $bestSellers = Catalog::with(['colors.sizes'])
+                ->where('sold', '>', 0) // Only include catalogs with sold > 0
+                ->orderBy('sold', 'desc') // Order by the highest sold value
+                ->take(3) // Limit to top 3 best sellers
+                ->get();
+
+            if ($bestSellers->isEmpty()) {
+                return response()->json([
+                    'message' => 'No best sellers available',
+                    'data' => [],
+                    'status' => 'success'
+                ]);
+            }
+
+            return response()->json([
+                'message' => 'Best sellers retrieved successfully',
+                'data' => $bestSellers,
+                'status' => 'success'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to retrieve best sellers',
+                'detail message' => $e->getMessage(),
+                'status' => 'failed'
+            ], 500);
+        }
+    }
      /**
      * Store a newly created resource in storage.
      */
@@ -71,7 +100,7 @@ class CatalogControllerApi extends Controller
                     $fileName = time() . '.' . $request->gambar->extension();
                     $request->gambar->move(public_path('uploads/catalog'), $fileName);
                 }
-    
+                
                 // Buat catalog
                 $catalog = Catalog::create([
                     'nama_katalog' => $validate['nama_katalog'],

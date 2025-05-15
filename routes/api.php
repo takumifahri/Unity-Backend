@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\MasterJenisKatalogControllerApi;
 use App\Http\Controllers\Api\OrderControllerApi;
 use App\Http\Controllers\Api\ProfileControllerApi;
 use App\Http\Controllers\Api\ReviewControllerApi;
+use App\Http\Controllers\Api\TransactionControllerApi;
 use App\Http\Controllers\Api\UserControllerApi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;   
@@ -82,6 +83,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 Route::prefix('/catalog')->group(function () {
     // Add your catalog routes here
     Route::get('/', [CatalogControllerApi::class, 'index']);
+    Route::get('/bestSeller', [CatalogControllerApi::class, 'getBestSeller']);
     Route::get('/show/{id}', [CatalogControllerApi::class, 'show']);
     Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/store', [CatalogControllerApi::class, 'store']);
@@ -108,14 +110,16 @@ Route::prefix('/order')->group(function () {
     // Add your order routes here
     Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/', [OrderControllerApi::class, 'index']);
-        Route::get('/show/{id}', [OrderControllerApi::class, '  ']);
+        Route::get('/show/{id}', [OrderControllerApi::class, 'show']);
         Route::get('/itemlist', [OrderControllerApi::class, 'CartIndex']);
         Route::post('/additem', [OrderControllerApi::class, 'addCart']);
+        Route::post('/addQuantity', [OrderControllerApi::class, 'addQuantity']);
+
         Route::delete('/removeItem', [OrderControllerApi::class, 'removeItems']);
         Route::post('/checkout', [OrderControllerApi::class, 'checkout']);
         Route::post('/checkout/buktibayar', [OrderControllerApi::class, 'uploadPaymentProof']);
         Route::post('/admin/verif/{id}', [OrderControllerApi::class, 'AdminVerifPayment']);
-        Route::get('/history', [OrderControllerApi::class, 'getMyOrders']);
+        Route::get('/history', [OrderControllerApi::class, 'Riwayat']);
 
         Route::get('/monthly', [OrderControllerApi::class, 'getMonthly']);
 
@@ -137,6 +141,13 @@ Route::prefix('/order')->group(function () {
        
         // Route::post('/addReviews/{id}', [OrderControllerApi::class, 'Reviews']);
         // Route::get('/reviews', [OrderControllerApi::class, 'getReviews']);
+    });
+});
+
+Route::prefix('/transaction')->group(function () {
+    Route::middleware(['auth:sanctum'])->group(function () {
+        Route::get('/', [TransactionControllerApi::class, 'index']);
+        Route::get('/{id}', [TransactionControllerApi::class, 'show']);
     });
 });
 Route::prefix('/reviews')->group(function () {
