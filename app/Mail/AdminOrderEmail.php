@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\CustomOrder;
+use App\Models\Order;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -15,17 +16,19 @@ class AdminOrderEmail extends Mailable
     use Queueable, SerializesModels;
 
     public $customOrder;
-
+    public $order;
     /**
      * Create a new message instance.
      *
      * @param CustomOrder $customOrder
      * @return void
      */
-    public function __construct(CustomOrder $customOrder)
+    public function __construct(CustomOrder $customOrder, Order $order)
     {
         $this->customOrder = $customOrder;
+        $this->order = $order;
     }
+    
 
     /**
      * Build the message.
@@ -36,9 +39,10 @@ class AdminOrderEmail extends Mailable
     {
         return $this->view('emails.custom-order.admin-notification')
                     ->text('emails.custom-order.admin-notification-plain')
-                    ->subject("[Admin] Custom Order #{$this->customOrder->id} Telah Disetujui")
+                    ->subject("[Admin] Custom Order {$this->order->order_unique_id} Telah Disetujui")
                     ->with([
                         'orderId' => $this->customOrder->id,
+                        'orderUniqueId' => $this->order->order_unique_id,
                         // 'nama' => $this->customOrder->nama_lengkap,
                         // 'jenisBaju' => $this->customOrder->jenis_baju,
                         // 'ukuran' => $this->customOrder->ukuran,

@@ -1,18 +1,18 @@
+Halo {{ $customerName }},
 
-Halo {{ $nama }},
+Pembayaran Anda untuk transaksi #{{ $transactionId }} telah berhasil diverifikasi dan disetujui.
 
-Kami dengan senang hati memberitahukan bahwa custom order Anda telah disetujui.
+DETAIL TRANSAKSI:
+- ID Transaksi: {{ $transactionId }}
+- Tanggal Order: {{ $orderDate }}
+- Metode Pembayaran: {{ $paymentMethod }}
+- Total Pembayaran: Rp {{ number_format($totalAmount, 0, ',', '.') }}
 
 DETAIL PESANAN:
-- Nama: {{ $nama }}
-- Email: {{ $email }}
-- No. Telepon: {{ $noTelp }}
-- Jenis Baju: {{ $jenisBaju }}
-- Ukuran: {{ $ukuran }}
-- Jumlah: {{ $jumlah }}
-
-@if($catatan)
-CATATAN UNTUK TIM KAMI:
+@if(empty($orders))
+Detail pesanan tidak tersedia
+@else
+@foreach($orders as $order)
 {{ $catatan }}
 @endif
 

@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\CompleteOrdersMails;
+use App\Mail\RecievedByUsersMails;
+use App\Mail\SendDeliveryMails;
+use App\Mail\VerifPaymentMails;
 use App\Models\Catalog;
 use App\Models\CustomOrder;
 use App\Models\DeliveryProof;
@@ -13,6 +17,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 
 class OrderControllerApi extends Controller
@@ -161,8 +167,8 @@ class OrderControllerApi extends Controller
         $user = User::findOrFail(Auth::id());
         if($user->isUser()) {
            try{
-                $orders = Order::with(['catalog', 'transaction', 'customOrder', 'customOrder.approvedByUser'])
-                    ->orderBy('created_at', 'asc')
+                $orders = Order::with(['catalog', 'transaction', 'customOrder', 'customOrder.approvedByUser', 'user'])
+                    ->orderBy('created_at', 'desc')
                     ->get();
 
                 return response()->json([
@@ -178,7 +184,7 @@ class OrderControllerApi extends Controller
             }
         } else if($user->isAdmin() || $user->isOwner()) {
             try {
-                $orders = Order::with(['catalog', 'transaction', 'customOrder', 'customOrder.approvedByUser'])
+                $orders = Order::with(['catalog', 'transaction', 'customOrder', 'customOrder.approvedByUser', 'user'])
                     ->orderBy('created_at', 'asc')
                     ->get();
 
@@ -253,7 +259,7 @@ class OrderControllerApi extends Controller
         try {
             $order_items = Order::where('user_id', $user->id)
                 ->where('order_unique_id', $cart_id)
-                ->with('catalog', 'catalog.sizes', 'catalog.colors')
+                ->with('catalog', 'transaction', 'color', 'size')
                 ->first();
             if($order_items) {
                 return response()->json([
@@ -483,7 +489,7 @@ class OrderControllerApi extends Controller
             // Update status of all selected orders to 'Menunggu_Konfirmasi', add unique_id, and catatan
             foreach ($cartItems as $item) {
                 $item->status = 'Menunggu_Konfirmasi';
-                $item->order_unique_id = 'ORD-' . strtoupper(uniqid()); // Generate unique_id
+                $item->order_unique_id = 'ORD-CTL' . strtoupper(uniqid()); // Generate unique_id
                 $item->transaction_id = $transaction->id;
                 $item->type = $request->type;
                 $item->catatan = $request->catatan; // Add catatan to the order
@@ -597,6 +603,7 @@ class OrderControllerApi extends Controller
     //     if($user->isAdmin() || $user->isOwner())
     // }
 
+
     public function sendToDelivery(Request $request, $id)
     {
         $user = User::findOrFail(Auth::id());
@@ -604,29 +611,85 @@ class OrderControllerApi extends Controller
             try {
                 $validator = Validator::make($request->all(), [
                     'status' => 'required|in:Sedang_Dikirim,Sudah_Terkirim',
+                    'image' => 'nullable|image|max:2048',
+                    'description' => 'nullable|string',
+                    'receiver_name' => 'nullable|string',
+                    'notes' => 'nullable|string',
                 ]);
 
                 if ($validator->fails()) {
                     return response()->json(['errors' => $validator->errors()], 422);
                 }
 
-                $order = Order::findOrFail($id);
-                $customOrder = CustomOrder::findOrFail($order->custom_order_id);
-                // Update order status
+                $order = Order::with(['catalog', 'customOrder', 'user'])->findOrFail($id);
+                
+                // Check if custom_order_id is provided and exists
+                $customOrder = $order->customOrder ?? null;
+                
+                // Check if order status is valid for this action
                 if($order->status != 'Diproses') {
                     return response()->json([
                         'success' => false,
                         'message' => 'Order cannot be sent to delivery. Current status: ' . $order->status
                     ], 400);
                 }
-                $order->status = 'Selesai';
-                $customOrder->status = 'Sedang_Dikirim';
+                
+                // Update status sesuai request
+                $order->status = $request->status;
+                
+                if ($customOrder) {
+                    $customOrder->status = 'Selesai';
+                    $customOrder->save();
+                }
+                
                 $order->save();
+                
+                // Upload bukti pengiriman jika ada
+                $deliveryProof = null;
+                if ($request->hasFile('image')) {
+                    $imagePath = $request->file('image')->store('delivery_proofs', 'public');
+                    
+                    // Create delivery proof
+                    $deliveryProof = DeliveryProof::create([
+                        'order_id' => $order->id,
+                        'delivery_proof_unique_id' => 'DVPR-' . strtoupper(uniqid()),
+                        'admin_id' => $user->id,
+                        'image_path' => $imagePath,
+                        'description' => $request->description,
+                        'delivery_date' => now(),
+                        'receiver_name' => $request->receiver_name ?? 'Pelanggan',
+                        'notes' => $request->notes,
+                        'status' => $request->status
+                    ]);
+                }
+                
+                // Get customer data
+                $customer = User::findOrFail($order->user_id);
+                
+                // Send email notification to customer based on status
+                try {
+                    if ($request->status == 'Sedang_Dikirim') {
+                        // Use SendDeliveryMails for in-transit orders
+                        Mail::to($customer->email)->send(new SendDeliveryMails($order, $customOrder ?? new CustomOrder(), $customer));
+                        Log::info('Delivery notification email sent to customer: ' . $customer->email);
+                    } else if ($request->status == 'Sudah_Terkirim' && $deliveryProof) {
+                        // Use RecievedByUsersMails for delivered orders with proof
+                        Mail::to($customer->email)->send(new RecievedByUsersMails($order, $deliveryProof, $customer));
+                        Log::info('Delivery receipt email sent to customer: ' . $customer->email);
+                    }
+                } catch (\Exception $emailException) {
+                    Log::error('Error sending delivery email: ' . $emailException->getMessage());
+                }
+                
                 return response()->json([
                     'success' => true,
-                    'message' => 'Order status updated successfully',
-                    'data' => $order
+                    'message' => 'Order status updated successfully and notification email sent',
+                    'data' => [
+                        'order' => $order,
+                        'delivery_proof' => $deliveryProof
+                    ]
                 ], 200);
+                
             } catch (\Exception $e) {
                 return response()->json([
                     'success' => false,
@@ -643,6 +706,91 @@ class OrderControllerApi extends Controller
     }
 
     // Untuk admin verifikasi pembayaran
+    // public function AdminVerifPayment(Request $request, $id)
+    // {
+    //     $user = User::findOrFail(Auth::id());
+        
+    //     if ($user->isOwner() || $user->isAdmin()) {
+    //         try {
+    //             DB::beginTransaction();
+                
+    //             $transaction = Transaction::findOrFail($id);
+                
+    //             if ($request->status == 'approve') {
+    //                 $transaction->status = 'success';
+    //                 $transaction->save();
+    //                 // Update all orders associated with this transaction
+    //                 $orders = Order::where('transaction_id', $transaction->id)->get();
+                    
+    //                 $catalogIds = $orders->pluck('catalog_id')->toArray();
+    //                 $catalogs = Catalog::whereIn('id', $catalogIds)->get();
+    //                 $customOrderIds = $orders->pluck('custom_order_id')->unique()->toArray();
+    //                 $customOrders = CustomOrder::whereIn('id', $customOrderIds)->get();
+
+    //                 foreach ($orders as $order) {
+    //                     $order->status = 'Diproses';
+    //                     $order->save();
+                        
+    //                     // Catat ke tabel keuangan untuk setiap order yang diverifikasi
+    //                     $keuangan = new keuangan();
+    //                     $keuangan->catalog_id = $order->catalog_id;
+    //                     $keuangan->order_id = $order->id;
+    //                     $keuangan->user_id = $order->user_id;
+    //                     $catalog = $catalogs->where('id', $order->catalog_id)->first();
+    //                     $customOrder = $customOrders->where('id', $order->custom_order_id)->first();
+    //                     $keuangan->keterangan = 'Pembayaran ' . ($catalog ? "Order {$catalog->nama_katalog}" : ($customOrder ? "Custom Order {$customOrder->jenis_baju}" : 'Unknown Catalog'));
+    //                     $keuangan->jenis_pembayaran = $this->convertPayment($transaction->payment_method); // Default value, can be adjusted
+    //                     $keuangan->nominal = $order->total_harga;
+    //                     $keuangan->tanggal = now();
+    //                     $keuangan->jenis_keuangan = 'pemasukan';
+    //                     $keuangan->save();
+    
+    //                     // Tambahkan jumlah barang yang terjual ke kolom `sold` di tabel `catalogs`
+    //                     if ($catalog) {
+    //                         $catalog->sold += $order->jumlah;
+    //                         $catalog->save();
+    //                     }
+    //                 }
+
+    //                 // Update status_payment of custom_orders to 'sudah_bayar'
+    //                 foreach ($customOrders as $customOrder) {
+    //                     $customOrder->status_pembayaran = 'sudah_bayar';
+    //                     $customOrder->save();
+    //                 }
+                    
+    //             } else {
+    //                 $transaction->status = 'failure';
+                    
+    //                 // Update all orders associated with this transaction
+    //                 Order::where('transaction_id', $transaction->id)
+    //                     ->update(['status' => 'Menunggu_Pembayaran']);
+    //             }
+                
+    //             DB::commit();
+        
+    //             return response()->json([
+    //                 'success' => true,
+    //                 'message' => 'Payment verification successful',
+    //                 'data' => $transaction
+    //             ]);
+                
+    //         } catch (\Exception $e) {
+    //             DB::rollBack();
+                
+    //             return response()->json([
+    //                 'success' => false,
+    //                 'message' => 'Error verifying payment',
+    //                 'error' => $e->getMessage()
+    //             ], 500);
+    //         }
+    //     } else {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Unauthorized'
+    //         ], 403);
+    //     }
+    // }
+
     public function AdminVerifPayment(Request $request, $id)
     {
         $user = User::findOrFail(Auth::id());
@@ -651,19 +799,40 @@ class OrderControllerApi extends Controller
             try {
                 DB::beginTransaction();
                 
-                $transaction = Transaction::findOrFail($id);
+                $transaction = Transaction::with(['order', 'order.catalog', 'order.customOrder', 'order.user'])
+                    ->findOrFail($id);
+                // Verify that this transaction belongs to the user
                 
+                $orders = Order::where('transaction_id', $transaction->id)
+                ->with(['catalog', 'customOrder', 'user'])
+                ->get();
+                
+                // Get all custom orders related to these orders
+                $customOrderIds = $orders->pluck('custom_order_id')->unique()->filter()->toArray();
+                $customOrders = !empty($customOrderIds) ? CustomOrder::whereIn('id', $customOrderIds)->with('user')->get() : collect();
+                
+                // Get catalogs
+                $catalogIds = $orders->pluck('catalog_id')->toArray();
+                $catalogs = Catalog::whereIn('id', $catalogIds)->get();
+
+                // Get customer for email - prefer custom order's user if available
+                $customer = null;
+                if ($customOrders->isNotEmpty() && $customOrders->first()->user) {
+                    $customer = $customOrders->first()->user;
+                } else {
+                    $customer = $orders->first()->user;
+                }
+                // Ensure we have a customer to email
+                if (!$customer) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Customer not found for this transaction'
+                    ], 404);
+                }
                 if ($request->status == 'approve') {
                     $transaction->status = 'success';
+                    $transaction->save();
                     
-                    // Update all orders associated with this transaction
-                    $orders = Order::where('transaction_id', $transaction->id)->get();
-                    
-                    $catalogIds = $orders->pluck('catalog_id')->toArray();
-                    $catalogs = Catalog::whereIn('id', $catalogIds)->get();
-                    $customOrderIds = $orders->pluck('custom_order_id')->unique()->toArray();
-                    $customOrders = CustomOrder::whereIn('id', $customOrderIds)->get();
-
                     foreach ($orders as $order) {
                         $order->status = 'Diproses';
                         $order->save();
@@ -676,12 +845,12 @@ class OrderControllerApi extends Controller
                         $catalog = $catalogs->where('id', $order->catalog_id)->first();
                         $customOrder = $customOrders->where('id', $order->custom_order_id)->first();
                         $keuangan->keterangan = 'Pembayaran ' . ($catalog ? "Order {$catalog->nama_katalog}" : ($customOrder ? "Custom Order {$customOrder->jenis_baju}" : 'Unknown Catalog'));
-                        $keuangan->jenis_pembayaran = $this->convertPayment($transaction->payment_method); // Default value, can be adjusted
+                        $keuangan->jenis_pembayaran = $this->convertPayment($transaction->payment_method);
                         $keuangan->nominal = $order->total_harga;
                         $keuangan->tanggal = now();
                         $keuangan->jenis_keuangan = 'pemasukan';
                         $keuangan->save();
-    
+
                         // Tambahkan jumlah barang yang terjual ke kolom `sold` di tabel `catalogs`
                         if ($catalog) {
                             $catalog->sold += $order->jumlah;
@@ -704,10 +873,25 @@ class OrderControllerApi extends Controller
                 }
                 
                 DB::commit();
+                
+                // Send email notification to customer
+                try {
+                    Mail::to($customer->email)->send(new VerifPaymentMails(
+                        $transaction, 
+                        $orders, 
+                        $customer, 
+                        $request->status
+                    ));
+                    
+                    Log::info('Payment verification email sent to customer: ' . $customer->email);
+                } catch (\Exception $emailException) {
+                    // Log email sending error but continue with the process
+                    Log::error('Error sending payment verification email: ' . $emailException->getMessage());
+                }
         
                 return response()->json([
                     'success' => true,
-                    'message' => 'Payment verification successful',
+                    'message' => 'Payment verification successful and notification email sent',
                     'data' => $transaction
                 ]);
                 
@@ -727,7 +911,6 @@ class OrderControllerApi extends Controller
             ], 403);
         }
     }
-
     public function Riwayat(Request $request)
     {
         $user = User::findOrFail(Auth::id());
@@ -796,10 +979,10 @@ class OrderControllerApi extends Controller
     /**
      * Update order status to shipped and create delivery proof
      */
-    public function shipOrder(Request $request, $id)
+    public function RecievedUser(Request $request, $id)
     {
-    $user = User::findOrFail(Auth::id());
-        
+        $user = User::findOrFail(Auth::id());
+            
         // Verify admin role
         if($user->isOwner() || $user->isAdmin()) {
             // User is admin or owner
@@ -810,11 +993,11 @@ class OrderControllerApi extends Controller
                     'receiver_name' => 'required|string',
                     'notes' => 'nullable|string',
                 ]);
-
+    
                 if ($validator->fails()) {
                     return response()->json(['errors' => $validator->errors()], 422);
                 }
-
+    
                 // Find the order
                 $order = Order::findOrFail($id);
                 
@@ -832,6 +1015,7 @@ class OrderControllerApi extends Controller
                 // Create delivery proof
                 $deliveryProof = DeliveryProof::create([
                     'order_id' => $order->id,
+                    'delivery_proof_unique_id' => 'DVPR-' . strtoupper(uniqid()),
                     'admin_id' => $user->id,
                     'image_path' => $imagePath,
                     'description' => $request->description,
@@ -839,15 +1023,28 @@ class OrderControllerApi extends Controller
                     'receiver_name' => $request->receiver_name,
                     'notes' => $request->notes,
                     'status' => 'delivered'
-                ]);
+                ]); 
                 
                 // Update order status
                 $order->status = 'Sudah_Terkirim';
                 $order->save();
                 
+                // Load related customer data
+                $customer = User::findOrFail($order->user_id);
+                
+                // Send email notification to customer
+                try {
+                    Mail::to($customer->email)->send(new RecievedByUsersMails($order, $deliveryProof, $customer));
+                    // Log successful email dispatch
+                    Log::info('Delivery email sent to customer: ' . $customer->email);
+                } catch (\Exception $emailException) {
+                    // Log email sending error but continue with the process
+                    Log::error('Error sending delivery email: ' . $emailException->getMessage());
+                }
+                
                 return response()->json([
                     'success' => true,
-                    'message' => 'Order has been shipped successfully',
+                    'message' => 'Order has been shipped successfully and notification email sent',
                     'data' => [
                         'order' => $order,
                         'delivery_proof' => $deliveryProof
@@ -867,8 +1064,6 @@ class OrderControllerApi extends Controller
                 'message' => 'Unauthorized'
             ], 403);
         }
-        
-       
     }
 
     /**
@@ -950,7 +1145,7 @@ class OrderControllerApi extends Controller
      */
     public function completeOrder($id)
     {
-    $user = User::findOrFail(Auth::id());
+        $user = User::findOrFail(Auth::id());
         
         // Verify admin role
         if ($user->isOwner() || $user->isAdmin()) {
@@ -977,9 +1172,24 @@ class OrderControllerApi extends Controller
                     $catalog->stok -= $order->jumlah;
                     $catalog->save();
                 }
+                
+                // Get customer data
+                $customer = User::findOrFail($order->user_id);
+                
+                // Send email notification to customer
+                try {
+                    Mail::to($customer->email)->send(new CompleteOrdersMails($order, $customer));
+                    
+                    // Log successful email dispatch
+                    Log::info('Order completion email sent to customer: ' . $customer->email);
+                } catch (\Exception $emailException) {
+                    // Log email sending error but continue with the process
+                    Log::error('Error sending order completion email: ' . $emailException->getMessage());
+                }
+                
                 return response()->json([
                     'success' => true,
-                    'message' => 'Order has been completed successfully',
+                    'message' => 'Order has been completed successfully and notification email sent',
                     'data' => $order
                 ]);
                 
@@ -990,15 +1200,13 @@ class OrderControllerApi extends Controller
                     'error' => $e->getMessage()
                 ], 500);
             }
-        } else{
+        } else {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized'
             ], 403);
         }
-     
     }
-
     /**
      * User confirming order receipt
      */

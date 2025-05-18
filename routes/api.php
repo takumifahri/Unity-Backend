@@ -57,6 +57,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/update/{id}', [UserControllerApi::class, 'update']);
         Route::delete('/delete/{id}', [UserControllerApi::class, 'destroy']);
 
+        Route::get('/topCustomer', [UserControllerApi::class, 'topCustomer']);
+        Route::post('/addAlamat/{id}', [UserControllerApi::class, 'addAlamatToUser']);
         Route::get('/count', [UserControllerApi::class, 'countUser']);
         Route::get('/count/visitor', [UserControllerApi::class, 'VisitorCount']);
     });
@@ -127,7 +129,7 @@ Route::prefix('/order')->group(function () {
         Route::get('/all', [OrderControllerApi::class, 'getAllCustonAndOrder']);
         Route::post('/sendToDelivery/{id}', [OrderControllerApi::class, 'sendToDelivery']);
         Route::get('/deliveryStatus', [OrderControllerApi::class, 'getOrdersWithDeliveryStatus']);
-        Route::post('/recieved/{id}', [OrderControllerApi::class, 'shipOrder']);
+        Route::post('/recieved/{id}', [OrderControllerApi::class, 'RecievedUser']);
         Route::post('/complete/{id}', [OrderControllerApi::class, 'completeOrder']);
         
         Route::prefix('/custom')->group(function(){
@@ -146,7 +148,7 @@ Route::prefix('/order')->group(function () {
 
 Route::prefix('/transaction')->group(function () {
     Route::middleware(['auth:sanctum'])->group(function () {
-        Route::get('/', [TransactionControllerApi::class, 'index']);
+        Route::get('/', [TransactionControllerApi::class, 'indexExceptPending']);
         Route::get('/{id}', [TransactionControllerApi::class, 'show']);
     });
 });

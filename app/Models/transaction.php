@@ -15,6 +15,7 @@ class transaction extends Model
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes, HistoryTrait, SoftDeletes;
     protected $fillable = [
         'order_id',  // ID dari order service
+        'transaction_unique_id', // ID unik untuk transaksi
         'status',    // status pembayaran
         'tujuan_transfer', // tujuan transfer
         'amount',    // jumlah pembayaran
@@ -40,4 +41,9 @@ class transaction extends Model
         return $this->hasOne(DeliveryProof::class);
     }
     
+    public function orders()
+    {
+        return $this->hasMany(Order::class, 'transaction_id', 'id');
+    }
 }
+ 

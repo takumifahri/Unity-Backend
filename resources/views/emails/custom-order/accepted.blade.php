@@ -61,7 +61,7 @@
         <p>Kami dengan senang hati memberitahukan bahwa custom order Anda telah disetujui.</p>
         
         <div class="order-detail">
-            <h3>Detail Pesanan:</h3>
+            <h3>Detail Pesanan: {{$orderId}}</h3>
             <ul>
                 <li><strong>Nama:</strong> {{ $nama }}</li>
                 <li><strong>Email:</strong> {{ $email }}</li>

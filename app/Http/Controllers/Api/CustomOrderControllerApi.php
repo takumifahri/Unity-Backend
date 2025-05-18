@@ -502,21 +502,23 @@ class CustomOrderControllerApi extends Controller
                     'total_harga' => $validatedData['total_harga'] // Update with final negotiated price
                 ]);
                 
-                // Create a new order
-                $order = Order::create([
-                    'user_id' => $customOrder->user_id ?? $user->id,
-                    'catalog_id' => null, // Using 0 for custom orders as it's required in schema
-                    'custom_order_id' => $customOrder->id,
-                    'jumlah' => $customOrder->jumlah,
-                    'total_harga' => $validatedData['total_harga'],
-                    'type' => 'Pemesanan',
-                    'status' => 'Menunggu_Konfirmasi', // Directly set to waiting for confirmation
-                    'bukti_pembayaran' => null,
-                ]);
+                // Create a new order without mass assignment
+                $order = new Order();
+                $order->order_unique_id = 'ORD-CST' . strtoupper(uniqid());
+                $order->user_id = $customOrder->user_id ?? $user->id;
+                $order->catalog_id = null; // Using null for custom orders
+                $order->custom_order_id = $customOrder->id;
+                $order->jumlah = $customOrder->jumlah;
+                $order->total_harga = $validatedData['total_harga'];
+                $order->type = 'Pemesanan';
+                $order->status = 'Menunggu_Konfirmasi';
+                $order->bukti_pembayaran = null;
+                $order->save();
 
                 // Create transaction
                 $transaction = transaction::create([
                     'order_id' => $order->id,
+                    'transaction_unique_id' => 'TRX-' . strtoupper(uniqid()),
                     'status' => 'pending',
                     'tujuan_transfer' => $this->getPaymentDetails($validatedData['payment_method']),
                     'amount' => $validatedData['total_harga'],
@@ -557,12 +559,12 @@ class CustomOrderControllerApi extends Controller
                 try {
                 
                     if ($customOrder->email) {
-                        Mail::to($customOrder->email)->send(new CustomerorderMail($customOrder));
+                        Mail::to($customOrder->email)->send(new CustomerorderMail($customOrder, $order));
                     }
                     
                     // Optionally, also notify the admin team
                     $adminEmail = config('contact.recipient_email', 'jrkonveksiemail@gmail.com');
-                    Mail::to($adminEmail)->send(new AdminOrderEmail($customOrder));
+                    Mail::to($adminEmail)->send(new AdminOrderEmail($customOrder, $order));
                     
                 } catch (\Exception $mailException) {
                     // Log error but don't fail the process

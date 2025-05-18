@@ -82,7 +82,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Custom Order #{{ $orderId }} Disetujui</h1>
+            <h1>Custom Order #{{ $orderUniqueId }} Disetujui</h1>
         </div>
         
         <div class="content">

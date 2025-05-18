@@ -135,6 +135,46 @@ class UserControllerApi extends Controller
         }
     }
 
+    public function addAlamatToUser(Request $request, string $id)
+    {
+        $user = User::findOrFail(Auth::id());
+        if ($user->isAdmin() || $user->isOwner()) {
+            $data = User::find($id);
+            if ($data !== null) {
+                try {
+                    $validate = $request->validate([
+                        'address' => 'required|string|max:255',
+                        'longitude' => 'required|numeric',
+                        'latitude' => 'required|numeric',
+                    ]);
+                    $data->update([
+                        'address' => $validate['address'],
+                        'longitude' => $validate['longitude'],
+                        'latitude' => $validate['latitude'],
+                    ]);
+                    return response()->json([
+                        'message' => 'User updated successfully',
+                        'data' => $data,
+                        'status' => 'success'
+                    ]);
+                } catch (\Exception $e) {
+                    return response()->json([
+                        'message' => $e->getMessage(),
+                        'status' => 'error'
+                    ]);
+                }
+            } else {
+                return response()->json([
+                    'message' => 'User not found'
+                ], 404);
+            }
+        } else {
+            return response()->json([
+                'message' => 'Unauthorized. Only admin can access this feature',
+                'status' => 'error'
+            ], 403);
+        }
+    }
     /**
      * Update the specified resource in storage.
      */
@@ -273,6 +313,27 @@ class UserControllerApi extends Controller
        
     }
 
-
+    public function topCustomer()
+    {
+        $user = User::findOrFail(Auth::id());
+        if ($user->isAdmin() || $user->isOwner()) {
+            $topCustomers = User::withCount('orders')
+                            ->where('role', 'user')
+                            ->orderBy('total_order', 'desc')
+                            ->limit(5)
+                            ->get();
+            
+            return response()->json([
+                'message' => 'Data retrieved successfully',
+                'status' => 'success',
+                'data' => $topCustomers
+            ]);
+        } else {
+            return response()->json([
+                'message' => 'Unauthorized. Only admin can access this feature',
+                'status' => 'error'
+            ], 403);
+        }
+    }
 
 }

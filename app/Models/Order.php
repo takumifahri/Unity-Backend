@@ -16,6 +16,7 @@ class Order extends Model
     protected $table = 'orders';
     protected $fillable = [
         'user_id',
+        'order_unique_id',
         'catalog_id',
         'custom_order_id',
         'transaction_id',
@@ -69,5 +70,14 @@ class Order extends Model
     public function reviews()
     {
         return $this->hasOne(ReviewsProduct::class, 'order_id');
+    }
+
+    public function color()
+    {
+        return $this->belongsTo(catalog_colors::class, 'color', 'id');
+    }
+    public function size()
+    {
+        return $this->belongsTo(catalog_sizes::class, 'size', 'id');
     }
 }

@@ -34,7 +34,10 @@ class User extends Authenticatable
         'profile_photo',
         'isActive',
         'isAgree',
-        'gender'
+        'gender',
+        'address',
+        'latitude',
+        'longitude',
     ];
 
     /**

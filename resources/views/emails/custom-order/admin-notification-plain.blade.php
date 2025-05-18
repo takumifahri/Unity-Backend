@@ -3,7 +3,7 @@ Halo Admin,
 
 Custom order berikut telah disetujui dan siap untuk diproses:
 
-DETAIL PESANAN Ke-{{ $orderId }}:
+DETAIL PESANAN {{ $orderUniqueId }}:
 - Nama Pelanggan: {{ $nama }}
 - Email: {{ $email }}
 - No. Telepon: {{ $noTelp }}

@@ -14,6 +14,7 @@ class DeliveryProof extends Model
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     protected $fillable = [
+        'delivery_proof_unique_id', // Unique ID untuk bukti pengiriman
         'order_id',       // ID pesanan yang dikirim
         'admin_id',       // ID admin yang melakukan pengiriman
         'image_path',     // Path gambar bukti pengiriman
