@@ -17,12 +17,13 @@ return new class extends Migration
             // $table->unsignedBigInteger('order_id');
             $table->unsignedBigInteger('catalog_id')->nullable();
             $table->foreign('catalog_id')->references('id')->on('catalogs')->onDelete('set null');
-            $table->foreignId('order_id')->constrained('orders')->onDelete('cascade');
+            $table->foreignId('order_id')->nullable()->constrained('orders')->onDelete('cascade');
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->string('keterangan');
             $table->enum('jenis_pembayaran', ['Cash', 'Transfer', 'E-Wallet'])->default('Cash');
             $table->integer('nominal');
             $table->timestamp('tanggal');
+            $table->string('bukti_pembayaran')->nullable();
             $table->enum('jenis_keuangan', ['pemasukan', 'pengeluaran']);
             $table->softDeletes();
             $table->timestamps();

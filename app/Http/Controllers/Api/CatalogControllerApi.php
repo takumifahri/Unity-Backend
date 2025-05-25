@@ -82,36 +82,37 @@ class CatalogControllerApi extends Controller
                     'deskripsi' => 'required|string',
                     'details' => 'required|string',
                     'stok' => 'required|numeric|min:0',
-                    // 'bahan' => 'required|exists:master_bahans,id',
                     'bahan' => 'required|string',
-                    // 'jenis_katalog' => 'required|exists:master_jenis_katalogs,id',
                     'price' => 'required|numeric|min:0',
                     'feature' => 'required|json',
-                    'colors' => 'required|array', // Validasi untuk warna sebagai array
-                    'colors.*.color_name' => 'required|string', // Validasi nama warna
-                    'colors.*.sizes' => 'required|array', // Validasi untuk ukuran dalam warna
-                    'colors.*.sizes.*.size' => 'required|in:S,M,L,XL', // Validasi setiap ukuran
-                    'colors.*.sizes.*.stok' => 'required|numeric|min:0', // Validasi stok untuk setiap ukuran
-                    'gambar' => 'required|file|mimes:jpeg,png,jpg,gif|max:2048',
+                    'colors' => 'required|array',
+                    'colors.*.color_name' => 'required|string',
+                    'colors.*.sizes' => 'required|array',
+                    'colors.*.sizes.*.size' => 'required|in:S,M,L,XL',
+                    'colors.*.sizes.*.stok' => 'required|numeric|min:0',
+                    'gambar.*' => 'required|file|mimes:jpeg,png,jpg,gif|max:2048', // Ubah validasi untuk multiple files
                 ]);
     
-                // Handle file upload
+                // Handle multiple file upload
+                $imagesPaths = [];
                 if ($request->hasFile('gambar')) {
-                    $fileName = time() . '.' . $request->gambar->extension();
-                    $request->gambar->move(public_path('uploads/catalog'), $fileName);
+                    foreach($request->file('gambar') as $image) {
+                        $fileName = time() . '_' . mt_rand(1000, 9999) . '.' . $image->extension();
+                        $image->move(public_path('uploads/catalog'), $fileName);
+                        $imagesPaths[] = 'uploads/catalog/' . $fileName;
+                    }
                 }
                 
-                // Buat catalog
+                // Buat catalog dengan gambar sebagai JSON array
                 $catalog = Catalog::create([
                     'nama_katalog' => $validate['nama_katalog'],
                     'deskripsi' => $validate['deskripsi'],
                     'details' => $validate['details'],
                     'stok' => $validate['stok'],
                     'bahan' => $validate['bahan'],
-                    // 'jenis_katalog_id' => $validate['jenis_katalog'],
                     'price' => $validate['price'],
                     'feature' => $validate['feature'],
-                    'gambar' => 'uploads/catalog/' . $fileName,
+                    'gambar' => $imagesPaths, // Simpan array path gambar (akan otomatis di-cast ke JSON)
                 ]);
     
                 // Simpan warna dan ukuran ke tabel catalog_colors dan catalog_sizes
@@ -123,7 +124,7 @@ class CatalogControllerApi extends Controller
                     foreach ($colorData['sizes'] as $sizeData) {
                         $color->sizes()->create([
                             'catalog_id' => $catalog->id,
-                            'catalog_colors_id' => $color->id, // Pastikan nilai catalog_colors_id diberikan
+                            'catalog_colors_id' => $color->id,
                             'size' => $sizeData['size'],
                             'stok' => $sizeData['stok'],
                         ]);
@@ -132,7 +133,7 @@ class CatalogControllerApi extends Controller
     
                 return response()->json([
                     'message' => 'Catalog created successfully',
-                    'data' => $catalog->load('colors.sizes'), // Muat relasi colors dan sizes
+                    'data' => $catalog->load('colors.sizes'),
                     'status' => 'success'
                 ], 201);
             } catch (\Exception $e) {
@@ -218,10 +219,9 @@ class CatalogControllerApi extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
         $catalog = Catalog::find($id);
         $user = User::findOrFail(Auth::id());
-
+    
         if ($user->isAdmin() || $user->isOwner()) {
             try{
                 $validate = $request->validate([
@@ -229,49 +229,72 @@ class CatalogControllerApi extends Controller
                     'deskripsi' => 'sometimes|string',
                     'details' => 'sometimes|string',
                     'stok' => 'sometimes|numeric|min:0',
-                    // 'bahan' => 'sometimes|exists:master_bahans,id',
                     'bahan' => 'sometimes|string',
-                    // 'jenis_katalog' => 'sometimes|exists:master_jenis_katalogs,id',
                     'price' => 'sometimes|numeric|min:0',
                     'feature' => 'sometimes|json',
                     'size' => 'sometimes|in:S,M,L,XL',
                     'size_guide' => 'sometimes|array',
-                    'colors' => 'sometimes|in:Brown,Black,Navy,Red,Green',
-                    'gambar' => 'sometimes|file|mimes:jpeg,png,jpg,gif|max:2048',
+                    'colors' => 'sometimes|string',
+                    'gambar.*' => 'sometimes|file|mimes:jpeg,png,jpg,gif|max:2048', // Update untuk multiple files
+                    'remove_images' => 'sometimes|array', // Array of image paths to remove
                 ]);
-
-                // Handle file upload
-                if ($request->hasFile('gambar')) {
-                    $fileName = time() . '.' . $request->gambar->extension();
-                    $request->gambar->move(public_path('uploads/catalog'), $fileName);
+    
+                // Get current images
+                $currentImages = is_array($catalog->gambar) ? $catalog->gambar : [];
+                
+                // Remove images if specified
+                if ($request->has('remove_images') && is_array($request->remove_images)) {
+                    foreach ($request->remove_images as $imagePath) {
+                        // Remove from storage if exists
+                        if (file_exists(public_path($imagePath))) {
+                            unlink(public_path($imagePath));
+                        }
+                        
+                        // Remove from current images array
+                        $currentImages = array_filter($currentImages, function($path) use ($imagePath) {
+                            return $path != $imagePath;
+                        });
+                    }
                 }
-
+                
+                // Handle new file uploads
+                $newImages = [];
+                if ($request->hasFile('gambar')) {
+                    foreach($request->file('gambar') as $image) {
+                        $fileName = time() . '_' . mt_rand(1000, 9999) . '.' . $image->extension();
+                        $image->move(public_path('uploads/catalog'), $fileName);
+                        $newImages[] = 'uploads/catalog/' . $fileName;
+                    }
+                }
+                
+                // Merge existing (not removed) images with new images
+                $finalImages = array_merge($currentImages, $newImages);
+                
                 $catalog->update([
                     'nama_katalog' => $request->has('nama_katalog') ? $validate['nama_katalog'] : $catalog->nama_katalog,
                     'deskripsi' => $request->has('deskripsi') ? $validate['deskripsi'] : $catalog->deskripsi,
                     'details' => $request->has('details') ? $validate['details'] : $catalog->details,
                     'stok' => $request->has('stok') ? $validate['stok'] : $catalog->stok,
                     'bahan' => $request->has('bahan') ? $validate['bahan'] : $catalog->bahan,
-                    // 'jenis_katalog_id' => $request->has('jenis_katalog') ? $validate['jenis_katalog'] : $catalog->jenis_katalog_id,
                     'price' => $request->has('price') ? $validate['price'] : $catalog->price,
                     'feature' => $request->has('feature') ? $validate['feature'] : $catalog->feature,
                     'size' => $request->has('size') ? $validate['size'] : $catalog->size,
                     'colors' => $request->has('colors') ? $validate['colors'] : $catalog->colors,
-                    'gambar' => $request->hasFile('gambar') ? 'uploads/catalog/' . $fileName : $catalog->gambar,
+                    'gambar' => count($newImages) > 0 || $request->has('remove_images') ? $finalImages : $catalog->gambar,
                 ]);
-
+    
                 return response()->json([
                     'message' => 'Catalog Updated successfully',
                     'data' => $catalog,
                     'status' => 'success'
-                ], 201);
+                ], 200);
             } catch (\Exception $e) {
                 return response()->json([
-                    'message' => 'Failed to create catalog',
+                    'message' => 'Failed to update catalog',
                     'detail message' => $e->getMessage(),
                     'status' => 'failed'
                 ], 500);
-           }
+            }
         } else {
             return response()->json([
                 'message' => 'Unauthorized. Only admin can access this feature',

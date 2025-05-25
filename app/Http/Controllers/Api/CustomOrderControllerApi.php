@@ -9,6 +9,7 @@ use App\Models\CustomOrder;
 use App\Models\Order;
 use App\Models\transaction;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -20,35 +21,51 @@ use Illuminate\Support\Facades\Log;
 class CustomOrderControllerApi extends Controller
 {
     //
-    public function show(Request $request, $id)
+    public function show($custom_order_unique_id)
     {
         $user = User::findOrFail(Auth::id());
-        if($user->isAdmin() || $user->isOwner() || $user->isUser()){
-            try {
-                $customOrder = CustomOrder::findOrFail($id)
-                    ->with('masterBahan', 'approvedByUser')
-                    ->where('id', $id)
-                    ->where('user_id', $user->id)
+        try {
+            if ($user->isUser()) {
+                $customOrder = CustomOrder::where('user_id', $user->id)
+                    ->where('custom_order_unique_id', $custom_order_unique_id)
+                    ->with('masterBahan', 'approvedByUser', 'colors.sizes', 'user', 'orders')
                     ->first();
+                
+                if ($customOrder) {
+                    return response()->json([
+                        'message' => 'Data retrieved successfully',
+                        'data' => $customOrder
+                    ], 200);
+                } else {
+                    return response()->json([
+                        'message' => 'Custom order not found',
+                        'data' => []
+                    ], 404);
+                }
+            } else if ($user->isAdmin() || $user->isOwner()) {
+                $customOrder = CustomOrder::where('custom_order_unique_id', $custom_order_unique_id)
+                    ->with('masterBahan', 'approvedByUser', 'colors.sizes', 'user', 'orders')
+                    ->first();
+                
+                if ($customOrder) {
+                    return response()->json([
+                        'message' => 'Data retrieved successfully',
+                        'data' => $customOrder
+                    ], 200);
+                } else {
+                    return response()->json([
+                        'message' => 'Custom order not found',
+                        'data' => []
+                    ], 404);
+                }
+            } else {
                 return response()->json([
-                    'status' => true,
-                    'message' => 'Berhasil mendapatkan data custom order',
-                    'data' => $customOrder
-                ], 200);
-            } catch (ModelNotFoundException $e) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'Custom order tidak ditemukan'
-                ], 404);
-            } catch (\Exception $e) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'Gagal mendapatkan data custom order',
-                    'error' => $e->getMessage()
-                ], 500);
+                    'message' => 'Unauthorized'
+                ], 403);
             }
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error', 'error' => $e->getMessage()], 500);
         }
-      
     }
     private function getPaymentDetails($payment_method)
     {
@@ -60,59 +77,144 @@ class CustomOrderControllerApi extends Controller
         return $payment_details[$payment_method] ?? 'Bank BCA: 2670342134 a.n. Andi Setiawan';
     }
 
-    public function index(){
+    public function index(Request $request)
+    {
         $user = User::findOrFail(Auth::id());
-        if($user->isAdmin() || $user->isOwner()){
-            try{
-                $customOrders = CustomOrder::with('masterBahan', 'approvedByUser')->get();
-                // $order = Order::with()
+        
+        // Filter options
+        $status = $request->query('status');
+        $dateFrom = $request->query('date_from');
+        $dateTo = $request->query('date_to');
+        
+        if ($user->isAdmin() || $user->isOwner()) {
+            try {
+                // Build base query
+                $query = CustomOrder::with([
+                    'masterBahan', 
+                    'approvedByUser', 
+                    'user', 
+                    'orders',
+                    'colors.sizes' // Add colors and sizes relationship
+                ]);
+                
+                // Apply filters if provided
+                if ($status) {
+                    $query->where('status', $status);
+                }
+                
+                if ($dateFrom && $dateTo) {
+                    $query->whereBetween('created_at', [
+                        Carbon::parse($dateFrom)->startOfDay(),
+                        Carbon::parse($dateTo)->endOfDay()
+                    ]);
+                }
+                
+                // Apply ordering
+                $query->orderBy($request->query('sort_by', 'created_at'), $request->query('sort_order', 'desc'));
+                
+                // Paginate or get all results
+                $perPage = $request->query('per_page', 10);
+                $customOrders = ($perPage === 'all') ? $query->get() : $query->paginate($perPage);
+                
                 if ($customOrders->isEmpty()) {
                     return response()->json([
-                        'status' => false,
-                        'message' => 'Tidak ada data custom order'
-                    ], 404);
+                        'status' => true,
+                        'message' => 'Tidak ada data custom order',
+                        'data' => []
+                    ], 200);
                 }
-                return response()->json([
+                
+                // Format response based on pagination or not
+                $responseData = [
                     'status' => true,
                     'message' => 'Berhasil mendapatkan data custom order',
                     'data' => [
-                        'custom_orders' => $customOrders,
-                        
+                        'custom_orders' => $customOrders
                     ]
-                ], 200);
-            }catch(\Exception $e){
+                ];
+                
+                // Add summary info for admin/owner
+                $responseData['data']['summary'] = [
+                    'total_pending' => CustomOrder::where('status', 'pending')->count(),
+                    'total_disetujui' => CustomOrder::where('status', 'disetujui')->count(),
+                    'total_proses' => CustomOrder::where('status', 'proses')->count(),
+                    'total_selesai' => CustomOrder::where('status', 'selesai')->count(),
+                    'total_ditolak' => CustomOrder::where('status', 'ditolak')->count(),
+                    'total_dibatalkan' => CustomOrder::where('status', 'dibatalkan')->count(),
+                ];
+                
+                return response()->json($responseData, 200);
+                
+            } catch (\Exception $e) {
+                Log::error('Custom order index error: ' . $e->getMessage());
                 return response()->json([
                     'status' => false,
                     'message' => 'Gagal mendapatkan data custom order',
-                    'error' => $e->getMessage()
+                    'error' => config('app.debug') ? $e->getMessage() : 'Terjadi kesalahan pada server'
                 ], 500);
             }
         }
 
-        if($user->isUser()){
-            try{
-                $customOrders = CustomOrder::where('user_id', $user->id)->get();
+        if ($user->isUser()) {
+            try {
+                // Build query for user's orders with filtering
+                $query = CustomOrder::where('user_id', $user->id)
+                    ->with(['colors.sizes']); // Add colors and sizes relationship
+                
+                // Apply filters if provided
+                if ($status) {
+                    $query->where('status', $status);
+                }
+                
+                if ($dateFrom && $dateTo) {
+                    $query->whereBetween('created_at', [
+                        Carbon::parse($dateFrom)->startOfDay(),
+                        Carbon::parse($dateTo)->endOfDay()
+                    ]);
+                }
+                
+                // Apply ordering
+                $query->orderBy($request->query('sort_by', 'created_at'), $request->query('sort_order', 'desc'));
+                
+                // Paginate results
+                $perPage = $request->query('per_page', 10);
+                $customOrders = ($perPage === 'all') ? $query->get() : $query->paginate($perPage);
+                
                 if ($customOrders->isEmpty()) {
                     return response()->json([
-                        'status' => false,
-                        'message' => 'Tidak ada data custom order'
-                    ], 404);
+                        'status' => true,
+                        'message' => 'Anda belum memiliki custom order',
+                        'data' => []
+                    ], 200);
                 }
+                
                 return response()->json([
                     'status' => true,
                     'message' => 'Berhasil mendapatkan data custom order',
                     'data' => $customOrders
                 ], 200);
-            }catch(\Exception $e){
+                
+            } catch (\Exception $e) {
+                Log::error('Custom order index error for user: ' . $e->getMessage());
                 return response()->json([
                     'status' => false,
                     'message' => 'Gagal mendapatkan data custom order',
-                    'error' => $e->getMessage()
+                    'error' => config('app.debug') ? $e->getMessage() : 'Terjadi kesalahan pada server'
                 ], 500);
             }
         }
+        
+        return response()->json([
+            'status' => false,
+            'message' => 'Unauthorized',
+        ], 403);
     }
 
+
+
+    /**
+     * Store a newly created resource in storage.
+     */
     public function propose(Request $request)
     {
         try {
@@ -125,78 +227,128 @@ class CustomOrderControllerApi extends Controller
                 ], 403);
             }
     
-            // Validate data first without the file
+            // Validate data
             $validateData = $request->validate([
                 'nama_lengkap' => 'required|string|max:255',
                 'no_telp' => 'required|string|max:255',
                 'email' => 'required|email|max:255',
                 'jenis_baju' => 'required|string|max:255',
-                'ukuran' => 'required|string|max:255',
-                'jumlah' => 'required|integer|min:1',
                 'detail_bahan' => 'nullable|string|max:255',
                 'sumber_kain' => 'required|in:konveksi,sendiri',
                 'catatan' => 'nullable|string|max:1000',
-                'estimasi_waktu' => 'nullable|string|max:255'
+                'colors' => 'required|array',
+                'colors.*.color_name' => 'required|string',
+                'colors.*.sizes' => 'required|array',
+                'colors.*.sizes.*.size' => 'required|in:S,M,L,XL',
+                'colors.*.sizes.*.jumlah' => 'required|integer|min:1',
+                'gambar_referensi' => 'nullable|array',
+                'gambar_referensi.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             ]);
             
-            // Handle file upload separately
-            $gambarReferensi = null;
+            // Handle multiple file uploads
+            $gambarReferensi = [];
             if ($request->hasFile('gambar_referensi')) {
-                // Additional file validation
-                $request->validate([
-                    'gambar_referensi' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
-                ]);
-                
-                // Make sure the upload directory exists
-                $uploadPath = public_path('uploads/custom_order');
-                if (!file_exists($uploadPath)) {
-                    mkdir($uploadPath, 0755, true);
-                }
-                
-                // Generate a unique filename
-                $fileName = time() . '_' . uniqid() . '.' . $request->file('gambar_referensi')->getClientOriginalExtension();
-                
-                // Move the file with error handling
-                if ($request->file('gambar_referensi')->move($uploadPath, $fileName)) {
-                    $gambarReferensi = "uploads/custom_order/{$fileName}";
-                } else {
-                    throw new \Exception('Failed to upload image');
+                foreach ($request->file('gambar_referensi') as $file) {
+                    // Make sure the upload directory exists
+                    $uploadPath = public_path('uploads/custom_order');
+                    if (!file_exists($uploadPath)) {
+                        mkdir($uploadPath, 0755, true);
+                    }
+                    
+                    // Generate a unique filename
+                    $fileName = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                    
+                    // Move the file with error handling
+                    if ($file->move($uploadPath, $fileName)) {
+                        $gambarReferensi[] = "uploads/custom_order/{$fileName}";
+                    } else {
+                        throw new \Exception('Failed to upload image');
+                    }
                 }
             }
             
-            // Create record
-            $customOrder = CustomOrder::create([
-                'user_id' => $user->id,
-                'nama_lengkap' => $validateData['nama_lengkap'],
-                'no_telp' => $validateData['no_telp'],
-                'email' => $validateData['email'],
-                'jenis_baju' => $validateData['jenis_baju'],
-                'ukuran' => $validateData['ukuran'],
-                'status' => 'pending',
-                'jumlah' => $validateData['jumlah'],
-                'sumber_kain' => $validateData['sumber_kain'],
-                'catatan' => $validateData['catatan'] ?? null,
-                'detail_bahan' => $validateData['detail_bahan'] ?? null,
-                // 'master_bahan_id' => $validateData['master_bahan_id'] ?? null,
-                'gambar_referensi' => $gambarReferensi,
-                'estimasi_waktu' => $validateData['estimasi_waktu'] ?? null
-            ]);
+            DB::beginTransaction();
             
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Custom order berhasil dibuat',
-                'data' => $customOrder
-            ], 201);
+            try {
+                // Create record for custom order
+                $customOrder = CustomOrder::create([
+                    'user_id' => $user->id,
+                    'custom_order_unique_id' => 'CST-' . strtoupper(uniqid()),
+                    'nama_lengkap' => $validateData['nama_lengkap'],
+                    'no_telp' => $validateData['no_telp'],
+                    'email' => $validateData['email'],
+                    'jenis_baju' => $validateData['jenis_baju'],
+                    'sumber_kain' => $validateData['sumber_kain'],
+                    'detail_bahan' => $validateData['detail_bahan'] ?? null,
+                    'status' => 'pending',
+                    'status_pembayaran' => 'belum_bayar',
+                    'catatan' => $validateData['catatan'] ?? null,
+                    'gambar_referensi' => !empty($gambarReferensi) ? json_encode($gambarReferensi) : null, // Encode sebagai JSON
+                ]);
+                
+                // Simpan data warna dan ukuran
+                foreach ($validateData['colors'] as $colorData) {
+                    // Buat warna baru untuk custom order ini
+                    $color = new \App\Models\Custom_order_colors([
+                        'custom_order_id' => $customOrder->id,
+                        'color_name' => $colorData['color_name'],
+                    ]);
+                    $color->save();
+                    
+                    // Simpan ukuran untuk warna ini
+                    foreach ($colorData['sizes'] as $sizeData) {
+                        $size = new \App\Models\Custom_order_sizes([
+                            'custom_order_id' => $customOrder->id,
+                            'custom_order_color_id' => $color->id,
+                            'size' => $sizeData['size'],
+                            'jumlah' => $sizeData['jumlah'],
+                        ]);
+                        $size->save();
+                    }
+                }
+                
+                DB::commit();
+                
+                // Load relasi colors dan sizes untuk ditampilkan di response
+                $customOrder->load('colors.sizes');
+                
+                return response()->json([
+                    'status' => true,
+                    'message' => 'Custom order berhasil dibuat',
+                    'data' => $customOrder
+                ], 201);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
             
         } catch (ValidationException $e) {
+            // Hapus file yang sudah terupload jika terjadi error validasi
+            if (isset($gambarReferensi)) {
+                foreach ($gambarReferensi as $path) {
+                    if (file_exists(public_path($path))) {
+                        unlink(public_path($path));
+                    }
+                }
+            }
+            
             return response()->json([
                 'status' => false,
                 'message' => 'Validasi gagal',
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
+            // Hapus file yang sudah terupload jika terjadi error
+            if (isset($gambarReferensi)) {
+                foreach ($gambarReferensi as $path) {
+                    if (file_exists(public_path($path))) {
+                        unlink(public_path($path));
+                    }
+                }
+            }
+            
             // Log error for debugging
-            // Log::error('Custom order creation failed: ' . $e->getMessage());
+            Log::error('Custom order creation failed: ' . $e->getMessage());
             
             return response()->json([
                 'status' => false,
@@ -271,58 +423,14 @@ class CustomOrderControllerApi extends Controller
 
             // Update the status and any additional fields
             $customOrder->status = 'disetujui';
-            // $customOrder->status_pembayaran = 'belum_bayar'; // Set default payment status
-
-            // Update estimasi_waktu if provided
-            // if (isset($validatedData['estimasi_waktu'])) {
-            //     $customOrder->estimasi_waktu = $validatedData['estimasi_waktu'];
-            // }
-            
-            // Add notes if provided
-            // if (isset($validatedData['catatan'])) {
-            //     $customOrder->catatan = $validatedData['catatan'];
-            // }
             
             // Record who approved it and when
-            $customOrder->approved_by = $user->id;
-            $customOrder->approved_at = now();
+            $customOrder->responded_by = $user->id;
+            $customOrder->responded_at = now();
             
+
             // Save changes
             $customOrder->save();
-            
-            // // Create a new order and associate it with the custom order
-            // $order = Order::create([
-            //     'user_id' => $customOrder->user_id ?? $user->id,
-            //     'catalog_id' => null, // Assuming this is not applicable for custom orders
-            //     'custom_order_id' => $customOrder->id,
-            //     'transaction_id' => null, // This can be updated later when a transaction is created
-            //     'jumlah' => 1, // Assuming 1 for custom orders
-            //     'total_harga' => 0, // This can be updated later based on pricing
-            //     'type' => 'Pemesanan',
-            //     'status' => 'Menunggu_Pembayaran',
-            //     'bukti_pembayaran' => null,
-            // ]);
-
-            // // Update the custom order to reference the newly created order
-            // $customOrder->order_id = $order->id;
-            // $customOrder->save();
-            // Send email notification to the customer
-            // try {
-                
-            //     if ($customOrder->email) {
-            //         Mail::to($customOrder->email)->send(new CustomerorderMail($customOrder));
-            //     }
-                
-            //     // Optionally, also notify the admin team
-            //     $adminEmail = config('contact.recipient_email', 'jrkonveksiemail@gmail.com');
-            //     Mail::to($adminEmail)->send(new AdminOrderEmail($customOrder));
-                
-            // } catch (\Exception $mailException) {
-            //     // Log error but don't fail the process
-            //     Log::error('Failed to send email notification: ' . $mailException->getMessage());
-            // }
-            
-            
 
             // create transaction 
             return response()->json([
@@ -357,18 +465,19 @@ class CustomOrderControllerApi extends Controller
 
     public function RejectResponse(Request $request)
     {
-         // Authorize the action
-         $user = User::findOrFail(Auth::id());
-         if (!$user || !($user->isOwner() || $user->isAdmin())) {
-             return response()->json([
-                 'status' => false,
-                 'message' => 'Unauthorized access'
-             ], 403);
-         }
+        // Authorize the action
+        $user = User::findOrFail(Auth::id());
+        if (!$user || !($user->isOwner() || $user->isAdmin())) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Unauthorized access'
+            ], 403);
+        }
         try {
             // Validate input
             $validatedData = $request->validate([
                 'custom_order_id' => 'required|exists:custom_orders,id',
+                'alasan_diTolak' => 'required|text',
             ]);
 
             // Find the order
@@ -384,63 +493,18 @@ class CustomOrderControllerApi extends Controller
 
             // Update the status and any additional fields
             $customOrder->status = 'ditolak';
-            // $customOrder->status_pembayaran = 'belum_bayar'; // Set default payment status
-
-            // Update estimasi_waktu if provided
-            // if (isset($validatedData['estimasi_waktu'])) {
-            //     $customOrder->estimasi_waktu = $validatedData['estimasi_waktu'];
-            // }
-            
-            // Add notes if provided
-            // if (isset($validatedData['catatan'])) {
-            //     $customOrder->catatan = $validatedData['catatan'];
-            // }
+            $customOrder->alasan_diTolak = $validatedData['alasan_diTolak'];
             
             // Record who approved it and when
-            $customOrder->approved_by = $user->id;
-            $customOrder->approved_at = now();
+            $customOrder->responded_by = $user->id;
+            $customOrder->responded_at = now();
             
             // Save changes
             $customOrder->save();
             
-            // // Create a new order and associate it with the custom order
-            // $order = Order::create([
-            //     'user_id' => $customOrder->user_id ?? $user->id,
-            //     'catalog_id' => null, // Assuming this is not applicable for custom orders
-            //     'custom_order_id' => $customOrder->id,
-            //     'transaction_id' => null, // This can be updated later when a transaction is created
-            //     'jumlah' => 1, // Assuming 1 for custom orders
-            //     'total_harga' => 0, // This can be updated later based on pricing
-            //     'type' => 'Pemesanan',
-            //     'status' => 'Menunggu_Pembayaran',
-            //     'bukti_pembayaran' => null,
-            // ]);
-
-            // // Update the custom order to reference the newly created order
-            // $customOrder->order_id = $order->id;
-            // $customOrder->save();
-            // Send email notification to the customer
-            // try {
-                
-            //     if ($customOrder->email) {
-            //         Mail::to($customOrder->email)->send(new CustomerorderMail($customOrder));
-            //     }
-                
-            //     // Optionally, also notify the admin team
-            //     $adminEmail = config('contact.recipient_email', 'jrkonveksiemail@gmail.com');
-            //     Mail::to($adminEmail)->send(new AdminOrderEmail($customOrder));
-                
-            // } catch (\Exception $mailException) {
-            //     // Log error but don't fail the process
-            //     Log::error('Failed to send email notification: ' . $mailException->getMessage());
-            // }
-            
-            
-
-            // create transaction 
             return response()->json([
                 'status' => true,
-                'message' => 'Custom order berhasil disetujui',
+                'message' => 'Custom order berhasil ditolak',
                 'data' => $customOrder
             ], 200);
             
@@ -457,7 +521,7 @@ class CustomOrderControllerApi extends Controller
             ], 404);
         } catch (\Exception $e) {
             // Log error for debugging
-            Log::error('Accept custom order failed: ' . $e->getMessage());
+            Log::error('Reject custom order failed: ' . $e->getMessage());
             
             return response()->json([
                 'status' => false,
@@ -466,7 +530,77 @@ class CustomOrderControllerApi extends Controller
             ], 500);
         }
     }
-    public function updateStatus(Request $request, $id){
+
+    
+    public function cancelPropose(Request $request)
+    {
+        // Authorize the action
+        $user = User::findOrFail(Auth::id());
+        if (!$user || !($user->isOwner() || $user->isAdmin())) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Unauthorized access'
+            ], 403);
+        }
+        try {
+            // Validate input
+            $validatedData = $request->validate([
+                'custom_order_id' => 'required|exists:custom_orders,id',
+                'alasan_diTolak' => 'required|text',
+            ]);
+
+            // Find the order
+            $customOrder = CustomOrder::findOrFail($validatedData['custom_order_id']);
+            
+            // Check if the order is in pending status
+            if ($customOrder->status !== 'pending') {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Hanya proposal dengan status pending yang dapat disetujui'
+                ], 422);
+            }
+
+            // Update the status and any additional fields
+            $customOrder->status = 'dibatalkan';
+            $customOrder->alasan_diTolak = $validatedData['alasan_diTolak'];
+            
+            // Record who approved it and when
+            $customOrder->reponded_by = $user->id;
+            $customOrder->reponded_at = now();
+            
+            // Save changes
+            $customOrder->save();
+            
+            return response()->json([
+                'status' => true,
+                'message' => 'Custom order berhasil ditolak',
+                'data' => $customOrder
+            ], 200);
+            
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Validasi gagal',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Custom order tidak ditemukan'
+            ], 404);
+        } catch (\Exception $e) {
+            // Log error for debugging
+            Log::error('Reject custom order failed: ' . $e->getMessage());
+            
+            return response()->json([
+                'status' => false,
+                'message' => 'Gagal mengubah status custom order',
+                'error' => config('app.debug') ? $e->getMessage() : 'Terjadi kesalahan pada server'
+            ], 500);
+        }
+    }
+
+    public function updateStatusToOrder(Request $request, $id){
         $user = User::findOrFail(Auth::id());
 
         if($user->isAdmin() || $user->isOwner()){
@@ -479,28 +613,48 @@ class CustomOrderControllerApi extends Controller
                     // 'custom_order_id' => 'required|exists:custom_orders,id',
                     'detail_bahan' => 'sometimes|string|max:255',
                     'total_harga' => 'required|integer|min:0', 
+                    'start_date' => 'required|date',
+                    'end_date' => 'required|date|after:start_date',
                     'payment_method' => 'required|in:BCA,E-Wallet_Dana,Cash'
                 ]);
 
                 // Find the custom order
-                $customOrder = CustomOrder::findOrFail($id);
-                
+                $customOrder = CustomOrder::with('colors.sizes')
+                ->findOrFail($id);
+
+                // Debug the loaded relations
+                Log::info('Custom Order Colors:', [
+                'order_id' => $customOrder->id,
+                'has_colors' => $customOrder->colors ? 'yes' : 'no',
+                'colors_count' => $customOrder->colors ? count($customOrder->colors) : 0
+                ]);
+
                 // Check if the order is in the correct status (disetujui)
                 if ($customOrder->status !== 'disetujui') {
-                    DB::rollBack();
-                    return response()->json([
-                        'status' => false,
-                        'message' => 'Hanya custom order dengan status disetujui yang dapat difinalisasi'
-                    ], 422);
+                DB::rollBack();
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Hanya custom order dengan status disetujui yang dapat difinalisasi'
+                ], 422);
                 }
 
-                // Update the custom order status to 'proses'
-                $customOrder->update([
-                    'detail_bahan' => $validatedData['detail_bahan'] ?? $customOrder->detail_bahan,
-                    'status' => 'proses',
-                    'status_pembayaran' => 'belum_bayar',
-                    'total_harga' => $validatedData['total_harga'] // Update with final negotiated price
-                ]);
+                // Calculate estimasi_waktu in days
+                $startDate = new \DateTime($validatedData['start_date']);
+                $endDate = new \DateTime($validatedData['end_date']);
+                $interval = $startDate->diff($endDate);
+                $estimasiWaktu = $interval->days . ' hari';
+
+                // Add safety checks before iterating
+                $totalQuantity = 0;
+                if ($customOrder->colors && count($customOrder->colors) > 0) {
+                foreach ($customOrder->colors as $color) {
+                    if ($color->sizes && count($color->sizes) > 0) {
+                        foreach ($color->sizes as $size) {
+                            $totalQuantity += $size->jumlah ?? 0;
+                        }
+                    }
+                }
+                }
                 
                 // Create a new order without mass assignment
                 $order = new Order();
@@ -508,12 +662,24 @@ class CustomOrderControllerApi extends Controller
                 $order->user_id = $customOrder->user_id ?? $user->id;
                 $order->catalog_id = null; // Using null for custom orders
                 $order->custom_order_id = $customOrder->id;
-                $order->jumlah = $customOrder->jumlah;
+                $order->jumlah = $totalQuantity; 
                 $order->total_harga = $validatedData['total_harga'];
                 $order->type = 'Pemesanan';
-                $order->status = 'Menunggu_Konfirmasi';
+                $order->status = 'Menunggu_Pembayaran';
                 $order->bukti_pembayaran = null;
                 $order->save();
+
+                // Update the custom order status to 'proses'
+                $customOrder->update([
+                    'detail_bahan' => $validatedData['detail_bahan'] ?? $customOrder->detail_bahan,
+                    'status' => 'proses',
+                    'status_pembayaran' => 'belum_bayar',
+                    'total_harga' => $validatedData['total_harga'],
+                    'start_date' => $validatedData['start_date'],
+                    'end_date' => $validatedData['end_date'],
+                    'estimasi_waktu' => $estimasiWaktu,
+                    'order_id' => $order->order_unique_id,
+                ]);
 
                 // Create transaction
                 $transaction = transaction::create([
@@ -543,19 +709,12 @@ class CustomOrderControllerApi extends Controller
                     'transaction_id' => $transaction->id,
                     'amount' => $validatedData['total_harga'],
                     'payment_method' => $validatedData['payment_method'],
+                    'start_date' => $validatedData['start_date'],
+                    'end_date' => $validatedData['end_date'],
+                    'estimasi_waktu' => $estimasiWaktu,
                     'timestamp' => now()->toDateTimeString()
                 ]);
 
-                // Send email notification about deal finalization and payment
-                // try {
-                //     if ($customOrder->email) {
-                //         // You might want to create a specific email for deal finalization
-                //         Mail::to($customOrder->email)->send(new CustomOrderFinalizedMail($customOrder, $transaction));
-                //     }
-                // } catch (\Exception $mailException) {
-                //     // Log error but don't fail the process
-                //     Log::error('Failed to send finalization email: ' . $mailException->getMessage());
-                // }
                 try {
                 
                     if ($customOrder->email) {

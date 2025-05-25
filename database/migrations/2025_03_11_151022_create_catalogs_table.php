@@ -18,16 +18,14 @@ return new class extends Migration
             $table->id();
             $table->string('nama_katalog');
             $table->text('deskripsi');
-            $table->string('details');
+            $table->text('details');
             $table->integer('stok');
             $table->string('bahan');
-            // $table->unsignedBigInteger('tipe_bahan_id');
-            // $table->unsignedBigInteger('jenis_katalog_id');
             $table->integer('price');
             $table->json('feature')->nullable();
             $table->integer('sold')->nullable()->default(0);
             $table->enum('colors', ["Brown", "Black", "Navy", "Red", "Green"])->nullable();
-            $table->string('gambar')->nullable();
+            $table->json('gambar')->nullable()->comment('Stores multiple photo URLs as JSON array');
             $table->timestamps();
             $table->softDeletes();
 

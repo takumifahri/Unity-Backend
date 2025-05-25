@@ -22,7 +22,7 @@ class catalog_colors extends Model
 
     public function sizes()
     {
-        return $this->belongsTo(size::class, 'id');
+        return $this->hasMany(size::class, 'catalog_colors_id', 'id');
     }
     public function catalog()
     {

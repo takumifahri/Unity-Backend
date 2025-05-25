@@ -22,6 +22,7 @@ class keuangan extends Model
         'nominal',
         'tanggal',
         'jenis_keuangan',
+        'bukti_pembayaran',
     ];
 
     public function user()
@@ -38,6 +39,7 @@ class keuangan extends Model
     {
         return $this->belongsTo(Order::class);
     }
+
 
     
 }

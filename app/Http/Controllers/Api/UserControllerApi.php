@@ -36,7 +36,7 @@ class UserControllerApi extends Controller
     public function countUser(){
         // Untuk manajemen USer
         $user = User::findOrFail(Auth::id());
-        if ($user->isAdmin() || $user->isOwner()) {
+        if ($user->isAdmin() || $user->isOwner() || $user->isUser()) {
             $data = User::count();
             return response()->json([
                 'message' => 'Data retrieved successfully',
@@ -48,6 +48,38 @@ class UserControllerApi extends Controller
                 'message' => 'Unauthorized. Only admin can access this feature',
                 'status' => 'error'
             ], 403);
+        }
+    }
+    public function orderTotal()
+    {
+        try{
+            // Count total users
+            $userCount = User::count();
+            
+            // Get combined total orders
+            $totalOrders = User::withCount('orders')
+                ->get()
+                ->sum('orders_count');
+                
+            // Get users with orders, including coordinates and address
+            $usersWithOrders = User::withCount('orders')
+                ->select('id', 'name', 'email', 'address', 'longitude', 'latitude')
+                ->get();
+                
+            return response()->json([
+                'message' => 'Data retrieved successfully',
+                'status' => 'success',
+                'data' => [
+                    'total_users' => $userCount,
+                    'total_orders' => $totalOrders,
+                    'users_with_orders' => $usersWithOrders
+                ]
+            ]);
+        }catch(\Exception $e){
+            return response()->json([
+                'message' => $e->getMessage(),
+                'status' => 'error'
+            ]);
         }
     }
     /**
@@ -318,7 +350,6 @@ class UserControllerApi extends Controller
         $user = User::findOrFail(Auth::id());
         if ($user->isAdmin() || $user->isOwner()) {
             $topCustomers = User::withCount('orders')
-                            ->where('role', 'user')
                             ->orderBy('total_order', 'desc')
                             ->limit(5)
                             ->get();
@@ -335,5 +366,5 @@ class UserControllerApi extends Controller
             ], 403);
         }
     }
-
+  
 }

@@ -18,8 +18,8 @@ class DeliveryProof extends Model
         'order_id',       // ID pesanan yang dikirim
         'admin_id',       // ID admin yang melakukan pengiriman
         'image_path',     // Path gambar bukti pengiriman
-        'description',    // Deskripsi tambahan tentang pengiriman
         'delivery_date',  // Tanggal pengiriman
+        'recieve_date',  // Tanggal penerimaan
         'receiver_name',  // Nama penerima barang
         'notes',          // Catatan tambahan (opsional)
         'status',         // Status pengiriman (misalnya: delivered, failed, etc.)

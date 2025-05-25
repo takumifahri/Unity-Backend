@@ -25,7 +25,19 @@ class Catalog extends Model
         'sold',
         'gambar',
     ];
+    protected $casts = [
+        'feature' => 'array',
+        'gambar' => 'array',
+    ];
 
+    public function getPrimaryImageAttribute()
+    {
+        if (empty($this->gambar)) {
+            return null;
+        }
+        
+        return is_array($this->gambar) ? $this->gambar[0] ?? null : $this->gambar;
+    }
     public function user()
     {
         return $this->belongsTo(User::class);

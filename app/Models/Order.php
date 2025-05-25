@@ -60,7 +60,7 @@ class Order extends Model
 
     public function approvedByUser()
     {
-        return $this->belongsTo(User::class, 'approved_by', 'id');
+        return $this->belongsTo(User::class, 'responded_by', 'id');
     }
 
     public function Transactions()
@@ -80,4 +80,5 @@ class Order extends Model
     {
         return $this->belongsTo(catalog_sizes::class, 'size', 'id');
     }
+
 }

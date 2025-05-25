@@ -60,6 +60,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/topCustomer', [UserControllerApi::class, 'topCustomer']);
         Route::post('/addAlamat/{id}', [UserControllerApi::class, 'addAlamatToUser']);
         Route::get('/count', [UserControllerApi::class, 'countUser']);
+
         Route::get('/count/visitor', [UserControllerApi::class, 'VisitorCount']);
     });
 
@@ -82,21 +83,21 @@ Route::middleware(['auth:sanctum'])->group(function () {
 });
 
 
-Route::prefix('/catalog')->group(function () {
-    // Add your catalog routes here
-    Route::get('/', [CatalogControllerApi::class, 'index']);
-    Route::get('/bestSeller', [CatalogControllerApi::class, 'getBestSeller']);
-    Route::get('/show/{id}', [CatalogControllerApi::class, 'show']);
-    Route::middleware(['auth:sanctum'])->group(function () {
-        Route::post('/store', [CatalogControllerApi::class, 'store']);
-        Route::post('/addStock/{id}', [CatalogControllerApi::class, 'addStock']);
-        Route::post('/update/{id}', [CatalogControllerApi::class, 'update']);
-        Route::delete('/delete/{id}', [CatalogControllerApi::class, 'destroy']);
-    }
-    );
+    Route::prefix('/catalog')->group(function () {
+        // Add your catalog routes here
+        Route::get('/', [CatalogControllerApi::class, 'index']);
+        Route::get('/bestSeller', [CatalogControllerApi::class, 'getBestSeller']);
+        Route::get('/show/{id}', [CatalogControllerApi::class, 'show']);
+        Route::middleware(['auth:sanctum'])->group(function () {
+            Route::post('/store', [CatalogControllerApi::class, 'store']);
+            Route::post('/addStock/{id}', [CatalogControllerApi::class, 'addStock']);
+            Route::post('/update/{id}', [CatalogControllerApi::class, 'update']);
+            Route::delete('/delete/{id}', [CatalogControllerApi::class, 'destroy']);
+        }
+        );
 
-});
-
+    });
+  
 Route::prefix('/contactus')->group(function () {
     // Add your contact us routes here
     Route::middleware(['auth:sanctum'])->group(function () {
@@ -106,6 +107,10 @@ Route::prefix('/contactus')->group(function () {
     });
 
     Route::post('/send', [ContactUsControllerApi::class, 'store']);
+});
+
+Route::prefix('landing')->group(function () {
+    Route::get('/map', [UserControllerApi::class, 'orderTotal']);
 });
 
 Route::prefix('/order')->group(function () {
@@ -136,8 +141,10 @@ Route::prefix('/order')->group(function () {
             Route::get('/', [CustomOrderControllerApi::class, 'index']);
             Route::get('/show/{id}', [CustomOrderControllerApi::class, 'show']);
             Route::post('/propose', [CustomOrderControllerApi::class, 'propose']);
+            Route::post('/reject/propose', [CustomOrderControllerApi::class, 'RejectResponse']);
+            Route::post('/cancel/propose', [CustomOrderControllerApi::class, 'cancelPropose']);
             Route::post('/accept/propose', [CustomOrderControllerApi::class, 'acceptPropose']);
-            Route::post('/finalize/{id}', [CustomOrderControllerApi::class, 'updateStatus']);
+            Route::post('/finalize/{id}', [CustomOrderControllerApi::class, 'updateStatusToOrder']);
         });
 
        
@@ -183,6 +190,9 @@ Route::prefix('/cashier')->group(function () {
 Route::prefix('/keuangan')->group(function() {
     Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/', [KeuanganControllerApi::class, 'index']);
+        Route::get('/getPengeluaran', [KeuanganControllerApi::class, 'pengeluaran']);
+        Route::post('/lapor', [KeuanganControllerApi::class, 'storePengeluaran']);
+        Route::get('/getPemasukan', [KeuanganControllerApi::class, 'pemasukan']);
         Route::get('/ProfitLossMonthly', [KeuanganControllerApi::class, 'trackMonthlyIncomeProfitLoss']);
         Route::get('/revenue', [KeuanganControllerApi::class, 'dailyRevenue']);
         Route::get('/routine', [KeuanganControllerApi::class, 'activitySummary']);

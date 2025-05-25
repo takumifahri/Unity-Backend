@@ -45,5 +45,7 @@ class transaction extends Model
     {
         return $this->hasMany(Order::class, 'transaction_id', 'id');
     }
+
+
 }
  

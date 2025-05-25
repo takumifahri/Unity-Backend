@@ -21,7 +21,7 @@ class TransactionControllerApi extends Controller
             $transaction = transaction::with(['orders' => function($query) {
                     $query->where('status', '!=', 'Menunggu_Pembayaran')
                           ->where('status', '=', 'Menunggu_konfirmasi');
-                }, 'orders.catalog', 'orders.customOrder', 'orders.user', 'orders.color', 'orders.size'])
+                }, 'order.catalog', 'order.customOrder', 'order.user', 'order.color', 'order.size', 'order.customOrder.colors', 'order.customOrder.sizes', 'order.customOrder.colors.sizes'])
                 ->orderBy('created_at', 'desc')
                 ->get();
             if ($transaction->isEmpty()) {
@@ -70,7 +70,7 @@ class TransactionControllerApi extends Controller
         $user = User::findOrFail(Auth::id());
         if($user && $user->isAdmin() || $user->isOwner()){
             try{
-                $transaction = transaction::with(['orders.catalog', 'orders.customOrder', 'orders.user', 'orders.color', 'orders.size'])
+                $transaction = transaction::with(['order.catalog', 'order.customOrder', 'order.user', 'order.color', 'order.size', 'order.customOrder.colors', 'order.customOrder.sizes', 'order.customOrder.colors.sizes'])
                     ->where('id', $id)
                     ->first();
                 if ($transaction) {

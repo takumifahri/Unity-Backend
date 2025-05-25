@@ -17,10 +17,10 @@ return new class extends Migration
             $table->foreign('order_id')->references('id')->on('orders')->onDelete('cascade');
             $table->unsignedBigInteger('admin_id');
             $table->foreign('admin_id')->references('id')->on('users')->onDelete('cascade');
-            $table->string('image_path');
-            $table->enum('type_pengantaran', ['ekspedisi', 'jrkonveksi', 'gosend', 'grabExpress']);                              // Path gambar bukti pengiriman
-            $table->text('description')->nullable();                   // Deskripsi tambahan
-            $table->timestamp('delivery_date')->nullable();            // Tanggal pengiriman
+            $table->string('image_path')->nullable();
+            $table->enum('type_pengantaran', ['ekspedisi', 'jrkonveksi', 'gosend', 'grabExpress', 'pickup']);                              // Path gambar bukti pengiriman
+            $table->timestamp('delivery_date')->nullable();     
+            $table->timestamp('recieve_date')->nullable();       // Tanggal pengiriman
             $table->string('receiver_name')->nullable();               // Nama penerima barang
             $table->text('notes')->nullable();                         // Catatan tambahan
             $table->enum('status', ['delivered', 'failed', 'pending'])->default('delivered'); // Status pengiriman

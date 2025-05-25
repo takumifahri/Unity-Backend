@@ -14,6 +14,7 @@ return new class extends Migration
         // First create users table without the foreign key
         Schema::create('users', function (Blueprint $table) {
             $table->id();
+            
             $table->string('google_id')->nullable();
             $table->string('facebook_id')->nullable();
             $table->string('name');
