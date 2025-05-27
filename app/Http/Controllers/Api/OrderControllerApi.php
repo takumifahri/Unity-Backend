@@ -167,7 +167,7 @@ class OrderControllerApi extends Controller
         $user = User::findOrFail(Auth::id());
         if($user->isUser()) {
            try{
-                $orders = Order::with(['catalog', 'transaction', 'customOrder', 'customOrder.approvedByUser', 'user', 'catalog.colors', 'catalog.colors.sizes', 'customOrder.colors', 'customOrder.sizes','customOrder.colors.sizes'])
+                $orders = Order::with(['catalog', 'transaction', 'customOrder','customOrder.colors', 'customOrder.sizes','customOrder.colors.sizes', 'customOrder.approvedByUser', 'user', 'catalog.colors', 'catalog.colors.sizes'])
                     ->orderBy('created_at', 'desc')
                     ->get();
 

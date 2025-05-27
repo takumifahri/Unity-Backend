@@ -68,4 +68,27 @@ class CustomOrder extends Model
     {
         return $this->hasMany(\App\Models\Custom_order_colors::class, 'custom_order_id');
     }
+
+    public function transactions()
+    {
+        return $this->hasManyThrough(
+            Transaction::class,    // Target model
+            Order::class,          // Intermediate model
+            'custom_order_id',     // Foreign key on Order that references CustomOrder
+            'order_id',            // Foreign key on Transaction that references Order
+            'id',                  // Local key on CustomOrder
+            'id'                   // Local key on Order
+        );
+    }   
+    public function deliveryProof()
+    {
+        return $this->hasOneThrough(
+            DeliveryProof::class,  // Target model
+            Order::class,          // Intermediate model
+            'custom_order_id',     // Foreign key on Order that references CustomOrder
+            'order_id',            // Foreign key on DeliveryProof that references Order
+            'id',                  // Local key on CustomOrder
+            'id'                   // Local key on Order
+        );
+    }
 }

@@ -28,7 +28,7 @@ class CustomOrderControllerApi extends Controller
             if ($user->isUser()) {
                 $customOrder = CustomOrder::where('user_id', $user->id)
                     ->where('custom_order_unique_id', $custom_order_unique_id)
-                    ->with('masterBahan', 'approvedByUser', 'colors.sizes', 'user', 'orders')
+                    ->with('masterBahan', 'approvedByUser', 'colors.sizes', 'user', 'orders', 'transactions', 'deliveryProof')
                     ->first();
                 
                 if ($customOrder) {
@@ -44,7 +44,7 @@ class CustomOrderControllerApi extends Controller
                 }
             } else if ($user->isAdmin() || $user->isOwner()) {
                 $customOrder = CustomOrder::where('custom_order_unique_id', $custom_order_unique_id)
-                    ->with('masterBahan', 'approvedByUser', 'colors.sizes', 'user', 'orders')
+                    ->with('masterBahan', 'approvedByUser', 'colors.sizes', 'user', 'orders', 'transactions','deliveryProof')
                     ->first();
                 
                 if ($customOrder) {
@@ -94,7 +94,10 @@ class CustomOrderControllerApi extends Controller
                     'approvedByUser', 
                     'user', 
                     'orders',
-                    'colors.sizes' // Add colors and sizes relationship
+                    // 'orders.deliveryProof',
+                    'colors.sizes',
+                    'transactions',
+                    'deliveryProof' // Add colors and sizes relationship
                 ]);
                 
                 // Apply filters if provided
@@ -646,14 +649,31 @@ class CustomOrderControllerApi extends Controller
 
                 // Add safety checks before iterating
                 $totalQuantity = 0;
+                
+                // Format color and size data for storage in order
+                $colorData = [];
+                $sizeData = [];
+                
                 if ($customOrder->colors && count($customOrder->colors) > 0) {
-                foreach ($customOrder->colors as $color) {
-                    if ($color->sizes && count($color->sizes) > 0) {
-                        foreach ($color->sizes as $size) {
-                            $totalQuantity += $size->jumlah ?? 0;
+                    foreach ($customOrder->colors as $color) {
+                        $colorName = $color->color_name;
+                        $colorData[] = $colorName;
+                        
+                        if ($color->sizes && count($color->sizes) > 0) {
+                            foreach ($color->sizes as $size) {
+                                $totalQuantity += $size->jumlah ?? 0;
+                                
+                                // Store sizes with their quantities by color
+                                if (!isset($sizeData[$colorName])) {
+                                    $sizeData[$colorName] = [];
+                                }
+                                $sizeData[$colorName][] = [
+                                    'size' => $size->size,
+                                    'jumlah' => $size->jumlah
+                                ];
+                            }
                         }
                     }
-                }
                 }
                 
                 // Create a new order without mass assignment
@@ -662,11 +682,16 @@ class CustomOrderControllerApi extends Controller
                 $order->user_id = $customOrder->user_id ?? $user->id;
                 $order->catalog_id = null; // Using null for custom orders
                 $order->custom_order_id = $customOrder->id;
-                $order->jumlah = $totalQuantity; 
+                $order->jumlah = $totalQuantity;
                 $order->total_harga = $validatedData['total_harga'];
                 $order->type = 'Pemesanan';
                 $order->status = 'Menunggu_Pembayaran';
                 $order->bukti_pembayaran = null;
+                
+                // Store color and size information as JSON
+                $order->color = !empty($colorData) ? json_encode($colorData) : null;
+                $order->size = !empty($sizeData) ? json_encode($sizeData) : null;
+                
                 $order->save();
 
                 // Update the custom order status to 'proses'
@@ -716,7 +741,6 @@ class CustomOrderControllerApi extends Controller
                 ]);
 
                 try {
-                
                     if ($customOrder->email) {
                         Mail::to($customOrder->email)->send(new CustomerorderMail($customOrder, $order));
                     }
